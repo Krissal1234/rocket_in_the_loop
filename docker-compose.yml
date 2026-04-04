@@ -1,0 +1,36 @@
+services:
+
+
+# Orchestrator + Rocketpy
+  ritl:
+    build: .
+    container_name: ritl
+    volumes:
+      - .:/app
+    ports:
+      # left side : what you access from your laptop
+      # right side : what the container listens on
+      - "5557:5557"    # fsw commands -> ritl
+      - "5558:5558"    # ritl sensor data -> fsw
+      - "5559:5559"    # external sim (simulink) if needed
+    environment:
+      - PYTHONUNBUFFERED=1    # makes python print output immediately (no buffering)
+    # depends_on:
+    #   - fprime                # wait for fprime to start first
+    networks:
+      - ritl-net
+
+  # # ── F Prime container ───────────────────────────────────────────────────────
+  # fprime:
+  #   image: nasacrl/fprime:latest      # official f prime image, no build needed
+  #   container_name: fprime
+  #   volumes:
+  #     - ./fprime:/fprime/project      # your fprime project mounted in
+  #   ports:
+  #     - "5000:5000"                   # GDS web UI — open localhost:5000 in browser
+  #   networks:
+  #     - ritl-net
+
+networks:
+  ritl-net:
+    driver: bridge
