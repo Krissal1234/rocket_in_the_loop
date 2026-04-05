@@ -1,0 +1,103 @@
+{
+    "elliptical_fins": {},
+    "environment": {
+        "base_pressure": null,
+        "base_temperature": null,
+        "date": null,
+        "elevation": 0.0,
+        "geodetic_method": "spherical",
+        "latitude": 28.61,
+        "longitude": -80.6,
+        "wind_average": 8.0,
+        "wind_turbulence": 0.15
+    },
+    "flight": {
+        "heading": 90.0,
+        "inclination": 90.0,
+        "rail_length": 1.0
+    },
+    "id": {
+        "comment": null,
+        "designer": "Designed by: Mauricio de Pinho, Revised by: Adam Flak",
+        "filepath": "rocket.ork",
+        "rocket_name": "Check fins??"
+    },
+    "motors": {
+        "center_of_dry_mass_position": 0,
+        "coordinate_system_orientation": "nozzle_to_combustion_chamber",
+        "dry_inertia": [
+            0,
+            0,
+            0
+        ],
+        "dry_mass": 0,
+        "grain_density": 1190.3098235197685,
+        "grain_initial_height": 0.404,
+        "grain_initial_inner_radius": 0.0135,
+        "grain_number": 1,
+        "grain_outer_radius": 0.027,
+        "grain_separation": 0,
+        "grains_center_of_mass_position": 0,
+        "nozzle_position": -0.202,
+        "nozzle_radius": 0.02025,
+        "position": 3.041218181818178,
+        "throat_radius": 0.0135,
+        "thrust_source": "./thrust_source.csv"
+    },
+    "nosecones": {
+        "base_radius": 0.077,
+        "kind": "ogive",
+        "length": 0.3,
+        "name": "Nose Cone",
+        "position": 0.0
+    },
+    "parachutes": {
+        "0": {
+            "area": 13.854423602330987,
+            "cd": 1.25,
+            "cds": 17.318029502913735,
+            "deploy_altitude": 150.0,
+            "deploy_delay": 0.0,
+            "deploy_event": "altitude",
+            "name": "Parachute MAIN"
+        },
+        "1": {
+            "area": 1.1309733552923256,
+            "cd": 0.34,
+            "cds": 0.3845309407993907,
+            "deploy_altitude": null,
+            "deploy_delay": 1.0,
+            "deploy_event": "apogee",
+            "name": "Parachute DROGUE"
+        }
+    },
+    "rail_buttons": {},
+    "rocket": {
+        "center_of_mass_without_propellant": 1.601,
+        "coordinate_system_orientation": "nose_to_tail",
+        "drag_curve": "./drag_curve.csv",
+        "inertia": [
+            0.032,
+            0.032,
+            12.59
+        ],
+        "mass": 9.507,
+        "radius": 0.077
+    },
+    "stored_results": {
+        "burnout_stability_margin": 2.61,
+        "flight_time": 1.95,
+        "ground_hit_velocity": 0.0,
+        "launch_rod_velocity": 10.229,
+        "max_acceleration": 54.623,
+        "max_altitude": 88.275,
+        "max_mach": 0.253,
+        "max_stability_margin": 4.238,
+        "max_thrust": 665.009,
+        "max_velocity": 85.481,
+        "min_stability_margin": 0.0,
+        "time_to_apogee": 1.95
+    },
+    "tails": {},
+    "trapezoidal_fins": {}
+}

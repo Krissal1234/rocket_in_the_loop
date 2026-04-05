@@ -2,23 +2,20 @@ import logging
 import datetime
 from rocketpy import Flight, Rocket, SolidMotor, Environment
 from rocketpy import Accelerometer, Barometer, Gyroscope
-from .controllers import (
-    sensor_controller,
-    airbrake_controller,
-    drogue_trigger,
-    main_trigger,
-)
+from .rocketpy_controllers import RocketPyControllers
+
 
 log = logging.getLogger("ritl.rocketpy")
 
 class FlightBuilder:
 
-    def __init__(self, data_folder: str = "data"):
+    def __init__(self, controllers : RocketPyControllers, data_folder: str = "data"):
         self.env = None
         self.motor = None
         self.rocket = None
         self.flight = None
         self.data_folder = data_folder
+        self.ctrl = controllers
 
     def build(self) -> Flight:
         self._build_environment()
@@ -119,7 +116,7 @@ class FlightBuilder:
         # Airbrakes currently serve as a dummy controller simply to send sensor data to orchestrator
         self.rocket.add_air_brakes(
             drag_coefficient_curve=[[0, 0, 0.0], [1, 0, 0.0], [0, 1, 0.0], [1, 1, 0.0]],
-            controller_function=sensor_controller,
+            controller_function=self.ctrl.sensor_controller,
             sampling_rate=100,
             name="SensorTransmitter",
             controller_name="SensorTransmitterController",
@@ -128,7 +125,7 @@ class FlightBuilder:
         # Real Airbrakes
         # self.rocket.add_air_brakes(
         #     drag_coefficient_curve=f"{self.data_folder}/airbrakes_cd.csv",
-        #     controller_function=airbrake_controller,
+        #     controller_function=self.ctrl.airbrake_controller,
         #     sampling_rate=100,
         #     name="AirBrakes",
         #     controller_name="AirBrakesController",
@@ -139,7 +136,7 @@ class FlightBuilder:
         self.rocket.add_parachute(
             name="drogue",
             cd_s=1.0,
-            trigger=drogue_trigger,
+            trigger=self.ctrl.drogue_trigger,
             sampling_rate=100,
             lag=1.5,
             noise=(0, 8.3, 0.5),
@@ -147,7 +144,7 @@ class FlightBuilder:
         self.rocket.add_parachute(
             name="main",
             cd_s=10.0,
-            trigger=main_trigger,
+            trigger=self.ctrl.main_trigger,
             sampling_rate=100,
             lag=1.5,
             noise=(0, 8.3, 0.5),
@@ -164,5 +161,5 @@ class FlightBuilder:
             time_overshoot=False,
         )
 
-def build_flight(data_folder: str = "data") -> Flight:
-    return FlightBuilder(data_folder).build()
+def build_flight(data_folder, controllers: RocketPyControllers) -> Flight:
+    return FlightBuilder(data_folder, controllers).build()
