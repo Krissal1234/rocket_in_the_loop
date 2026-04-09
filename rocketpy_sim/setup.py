@@ -9,20 +9,22 @@ log = logging.getLogger("ritl.rocketpy")
 
 class FlightBuilder:
 
-    def __init__(self, controllers : RocketPyControllers, data_folder: str = "data"):
+    def __init__(self, sim, controllers : RocketPyControllers, data_folder: str = "data"):
         self.env = None
         self.motor = None
         self.rocket = None
         self.flight = None
         self.data_folder = data_folder
         self.ctrl = controllers
+        self.sim = sim
 
     def build(self) -> Flight:
         self._build_environment()
         self._build_motor()
         self._build_rocket()
         self._add_sensors()
-        self._add_controllers()
+        if self.sim:
+            self._add_controllers()
         self._add_parachutes()
         self._run()
         return self.flight
@@ -115,14 +117,13 @@ class FlightBuilder:
         # At the time of development, rocketpy does not include custom controllers
         # Airbrakes currently serve as a dummy controller simply to send sensor data to orchestrator
         self.rocket.add_air_brakes(
-            drag_coefficient_curve=[[0, 0, 0.0], [1, 0, 0.0], [0, 1, 0.0], [1, 1, 0.0]],
+            drag_coefficient_curve=[[0, 0, 0.0], [0, 0, 0.0], [0, 0, 0.0], [0, 0, 0.0]],
             controller_function=self.ctrl.sensor_controller,
             sampling_rate=100,
             name="SensorTransmitter",
             controller_name="SensorTransmitterController",
         )
 
-        # Real Airbrakes
         # self.rocket.add_air_brakes(
         #     drag_coefficient_curve=f"{self.data_folder}/airbrakes_cd.csv",
         #     controller_function=self.ctrl.airbrake_controller,
@@ -161,5 +162,5 @@ class FlightBuilder:
             time_overshoot=False,
         )
 
-def build_flight(data_folder, controllers: RocketPyControllers) -> Flight:
-    return FlightBuilder(data_folder, controllers).build()
+def build_flight(sim, data_folder, controllers: RocketPyControllers) -> Flight:
+    return FlightBuilder(sim, data_folder, controllers).build()

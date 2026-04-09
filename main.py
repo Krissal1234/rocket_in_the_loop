@@ -40,7 +40,7 @@ def main():
     ctrl.connect()
 
 
-    build_flight(ctrl, "data/test_flight_1")
+    build_flight(True, ctrl, "data/test_flight_1")
 
     log.info("simulation complete")
 

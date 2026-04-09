@@ -8,15 +8,10 @@ services:
     volumes:
       - .:/app
     ports:
-      # left side : what you access from your laptop
-      # right side : what the container listens on
-      - "5557:5557"    # fsw commands -> ritl
-      - "5558:5558"    # ritl sensor data -> fsw
-      - "5559:5559"    # external sim (simulink) if needed
+      - "5561:5561"    # sensor data telemetry -> FSW
+      - "5562:5562"    # fsw actuation -> ritl
     environment:
-      - PYTHONUNBUFFERED=1    # makes python print output immediately (no buffering)
-    # depends_on:
-    #   - fprime                # wait for fprime to start first
+      - PYTHONUNBUFFERED=1
     networks:
       - ritl-net
 
