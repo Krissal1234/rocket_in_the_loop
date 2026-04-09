@@ -19,19 +19,24 @@ class RocketPyControllers:
         return self.socket.recv_json()
 
     def sensor_controller(self, time, sampling_rate, state, state_history,
-                          observed_variables, air_brakes, sensors):
+                        observed_variables, air_brakes, sensors):
         accel = sensors[0].measurement
         baro  = sensors[1].measurement
         gyro  = sensors[2].measurement
+
         self._send_recv({
-            "type":  "SENSOR",
-            "t":     time,
-            "accel": list(accel),
+            "type": "SENSOR",
+            "t":    time,
+            "accel": {"x": accel[0], "y": accel[1], "z": accel[2]},
             "baro":  float(baro),
-            "gyro":  list(gyro),
-            "pos":   list(state[0:3]),
-            "vel":   list(state[3:6]),
+            "gyro":  {"x": gyro[0],  "y": gyro[1],  "z": gyro[2]},
         })
+
+
+            # If we want to expose state we can too
+            # "pos":   {"x": float(state[0]), "y": float(state[1]), "z": float(state[2])},
+            # "vel":   {"x": float(state[3]), "y": float(state[4]), "z": float(state[5])},
+
         return time
 
     def drogue_trigger(self, pressure, height, state):
