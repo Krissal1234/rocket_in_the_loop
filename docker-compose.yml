@@ -5,8 +5,7 @@ services:
     volumes:
       - .:/app
     ports:
-      - "5561:5561"
-      - "5562:5562"
+      - "50101:50101"
     extra_hosts:
       - "host.docker.internal:host-gateway"    # lets container reach host on Linux
     environment:

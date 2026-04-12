@@ -23,6 +23,7 @@ def main():
     ready = threading.Event()
 
     orch = Orchestrator(ctx, ready_event=ready)
+
     ctrl = RocketPyControllers(ctx)
 
     orch_thread = threading.Thread(
@@ -40,11 +41,12 @@ def main():
     ctrl.connect()
 
 
-    build_flight(True, ctrl, "data/test_flight_1")
+    flight = build_flight(True, ctrl, "data/test_flight_1")
+
+    flight.all_info()
 
     log.info("simulation complete")
 
-    time.sleep(1.0)
     log.info("shutting down")
 
 if __name__ == "__main__":

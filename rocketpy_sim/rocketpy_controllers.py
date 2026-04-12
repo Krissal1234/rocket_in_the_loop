@@ -1,3 +1,4 @@
+from models.sensor_data import SensorData
 import zmq
 import logging
 
@@ -19,25 +20,25 @@ class RocketPyControllers:
         return self.socket.recv_json()
 
     def sensor_controller(self, time, sampling_rate, state, state_history,
-                        observed_variables, air_brakes, sensors):
+                          observed_variables, air_brakes, sensors):
         accel = sensors[0].measurement
         baro  = sensors[1].measurement
         gyro  = sensors[2].measurement
 
-        self._send_recv({
-            "type": "SENSOR",
-            "t":    time,
-            "accel": {"x": accel[0], "y": accel[1], "z": accel[2]},
-            "baro":  float(baro),
-            "gyro":  {"x": gyro[0],  "y": gyro[1],  "z": gyro[2]},
-        })
+        sensor = SensorData(
+            t       = float(time),
+            accel_x = float(accel[0]),
+            accel_y = float(accel[1]),
+            accel_z = float(accel[2]),
+            baro    = float(baro),
+            gyro_x  = float(gyro[0]),
+            gyro_y  = float(gyro[1]),
+            gyro_z  = float(gyro[2]),
+        )
 
-
-            # If we want to expose state we can too
-            # "pos":   {"x": float(state[0]), "y": float(state[1]), "z": float(state[2])},
-            # "vel":   {"x": float(state[3]), "y": float(state[4]), "z": float(state[5])},
-
+        self._send_recv({"type": "SENSOR", **sensor.to_dict()})
         return time
+
 
     def drogue_trigger(self, pressure, height, state):
         resp = self._send_recv({"type": "DROGUE_POLL"})

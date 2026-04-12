@@ -1,52 +1,42 @@
 import zmq
 import threading
 import logging
-from .fsw_client import FswTcpClient
+from .sensor_tcp_client import FswTcpClient
+from .actuation_tcp_server import ActuationTcpServer
+from models.flag_store import FlagStore
+from models.sensor_data import SensorData
 
+# logging.basicConfig(filename='test.log', encoding='utf-8', level=logging.DEBUG)
 log = logging.getLogger("ritl.orchestrator")
 
-ROCKETPY_ADDRESS    = "tcp://127.0.0.1:5560"
-FSW_ACTUATION_BIND  = "tcp://0.0.0.0:5562"
+ROCKETPY_ADDRESS = "tcp://127.0.0.1:5560"
 
-FSW_TCP_HOST = "host.docker.internal"
-FSW_TCP_PORT = 50100
-
+FSW_HOST         = "host.docker.internal"
+ACTUATION_BIND   = "0.0.0.0"
+FSW_TCP_PORT     = 50100
+ACTUATION_PORT   = 50101
 
 class Orchestrator:
     def __init__(self, ctx, ready_event: threading.Event = None):
-        self.ctx = ctx # Shared context with rocketpy
+        self.ctx = ctx
         self._ready_event = ready_event
-        self._flags = {"drogue": False, "main": False}
-        self._flags_lock = threading.Lock()
-        self._fsw = FswTcpClient(FSW_TCP_HOST, FSW_TCP_PORT)
-
-    def _actuation_pull_loop(self, fsw_pull):
-        while True:
-            msg = fsw_pull.recv_json()
-            with self._flags_lock:
-                if "drogue" in msg:
-                    self._flags["drogue"] = bool(msg["drogue"])
-                if "main" in msg:
-                    self._flags["main"] = bool(msg["main"])
-            log.info(f"Flags updated by FSW: {self._flags}")
+        self._flag_store = FlagStore()
+        self._fsw = FswTcpClient(FSW_HOST, FSW_TCP_PORT)
+        self._actuation = ActuationTcpServer(
+            host = ACTUATION_BIND,
+            port = ACTUATION_PORT,
+            flag_store = self._flag_store,
+        )
 
     def run(self):
         self._fsw.connect()
+        self._actuation.start()
 
         rocketpy_socket = self.ctx.socket(zmq.REP)
         rocketpy_socket.bind(ROCKETPY_ADDRESS)
 
-        fsw_pull_socket = self.ctx.socket(zmq.PULL)
-        fsw_pull_socket.bind(FSW_ACTUATION_BIND)
-
         if self._ready_event:
             self._ready_event.set()
-
-        threading.Thread(
-            target=self._actuation_pull_loop,
-            args=(fsw_pull_socket,),
-            daemon=True
-        ).start()
 
         while True:
             try:
@@ -54,27 +44,22 @@ class Orchestrator:
                 msg_type = msg.get("type")
 
                 if msg_type == "SENSOR":
-                    log.info(f"Telemetry: t={msg.get('t')}")
-                    ok = self._fsw.send_sensor(msg)
-                    if ok:
-                        rocketpy_socket.send_json({"status": "ok"})
-                    else:
-                        rocketpy_socket.send_json({"status": "error", "reason": "fsw timeout"})
+                    sensor = SensorData.from_dict(msg)
+                    log.info(f"Telemetry: t={sensor.t}, baro={sensor.baro}")
+                    self._fsw.send_sensor(sensor)
+                    rocketpy_socket.send_json({"status": "ok"}) # just an ack to continue lockstep
 
                 elif msg_type in ("DROGUE_POLL", "MAIN_POLL"):
-                    with self._flags_lock:
-                        resp = dict(self._flags)
-                    log.info(f"{msg_type} -> {resp}")
-                    rocketpy_socket.send_json({**resp, "status": "ok"})
+                    flags = self._flag_store.snapshot()
+                    rocketpy_socket.send_json({**flags})
 
                 else:
                     log.warning(f"Unknown message: {msg_type}")
-                    rocketpy_socket.send_json({"status": "error", "reason": "unknown type"})
 
             except Exception as e:
                 log.error(f"Orchestrator error: {e}")
-                rocketpy_socket.send_json({"status": "error", "reason": str(e)})
 
     def close(self):
+        self._actuation.close()
         self._fsw.close()
         self.ctx.destroy()

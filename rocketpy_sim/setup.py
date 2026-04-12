@@ -156,6 +156,7 @@ class FlightBuilder:
         self.flight = Flight(
             rocket=self.rocket,
             environment=self.env,
+            max_time_step= 0.001,
             rail_length=5.2,
             inclination=85,
             heading=0,
