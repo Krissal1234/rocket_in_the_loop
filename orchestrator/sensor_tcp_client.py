@@ -1,4 +1,3 @@
-import struct
 import threading
 import logging
 import socket

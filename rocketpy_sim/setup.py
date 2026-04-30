@@ -124,6 +124,7 @@ class FlightBuilder:
             controller_name="SensorTransmitterController",
         )
 
+
         # self.rocket.add_air_brakes(
         #     drag_coefficient_curve=f"{self.data_folder}/airbrakes_cd.csv",
         #     controller_function=self.ctrl.airbrake_controller,
@@ -156,7 +157,8 @@ class FlightBuilder:
         self.flight = Flight(
             rocket=self.rocket,
             environment=self.env,
-            max_time_step= 0.001,
+            max_time_step = 0.001,
+            # min_time_step = 0.001,
             rail_length=5.2,
             inclination=85,
             heading=0,

@@ -16,6 +16,9 @@ ACTUATION_BIND   = "0.0.0.0"
 FSW_TCP_PORT     = 50100
 ACTUATION_PORT   = 50101
 
+parachute_poll_count = 0
+sensor_poll_count = 0
+
 class Orchestrator:
     def __init__(self, ctx, ready_event: threading.Event = None):
         self.ctx = ctx
@@ -29,6 +32,7 @@ class Orchestrator:
         )
 
     def run(self):
+        global parachute_poll_count, sensor_poll_count
         self._fsw.connect()
         self._actuation.start()
 
@@ -48,10 +52,12 @@ class Orchestrator:
                     log.info(f"Telemetry: t={sensor.t}, baro={sensor.baro}")
                     self._fsw.send_sensor(sensor)
                     rocketpy_socket.send_json({"status": "ok"}) # just an ack to continue lockstep
+                    sensor_poll_count += 1
 
                 elif msg_type in ("DROGUE_POLL", "MAIN_POLL"):
                     flags = self._flag_store.snapshot()
                     rocketpy_socket.send_json({**flags})
+                    parachute_poll_count += 1
 
                 else:
                     log.warning(f"Unknown message: {msg_type}")
@@ -60,6 +66,7 @@ class Orchestrator:
                 log.error(f"Orchestrator error: {e}")
 
     def close(self):
+        print("sensor poll count", sensor_poll_count)
+        print("parachute poll count", parachute_poll_count)
         self._actuation.close()
         self._fsw.close()
-        self.ctx.destroy()

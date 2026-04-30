@@ -45,6 +45,12 @@ def main():
 
     flight.all_info()
 
+    time.sleep(2)
+
+
+
+    orch.close()
+
     log.info("simulation complete")
 
     log.info("shutting down")
