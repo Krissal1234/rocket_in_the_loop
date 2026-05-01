@@ -9,6 +9,8 @@ from orchestrator.orchestrator import Orchestrator
 from rocketpy_sim.rocketpy_controllers import RocketPyControllers
 from rocketpy_sim.setup import build_flight
 
+ENABLE_SIL = True
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(name)s] %(message)s"
@@ -19,7 +21,6 @@ def main():
     # share context in this test as it is more resource efficient
 
     ctx = zmq.Context.instance()
-
     ready = threading.Event()
 
     orch = Orchestrator(ctx, ready_event=ready)
@@ -41,11 +42,11 @@ def main():
     ctrl.connect()
 
 
-    flight = build_flight(True, ctrl, "data/test_flight_1")
+    time.sleep(2)
+    flight = build_flight(ENABLE_SIL, ctrl, "data/Camoes_flight")
 
     flight.all_info()
 
-    time.sleep(2)
 
 
 

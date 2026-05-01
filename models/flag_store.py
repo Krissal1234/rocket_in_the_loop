@@ -10,6 +10,7 @@ class FlagStore:
         self._flags = {
             "drogue": False,
             "main":   False,
+            "airbrake_dep_level": 0,
         }
         self._lock = threading.Lock()
 
@@ -22,8 +23,8 @@ class FlagStore:
             elif cmd.cmd_id == CommandId.MAIN_FIRE:
                 self._flags["main"] = True
                 log.info("FlagStore: main fired")
-            elif cmd.cmd_id == CommandId.CONTROL:
-                log.warning("FlagStore: CONTROL not yet implemented")
+            elif cmd.cmd_id == CommandId.AIRBRAKE_SET:
+                self._flags["airbrake_dep_level"] = cmd.deployment_level
             else:
                 log.warning(f"FlagStore: unknown command {cmd.cmd_id:#04x}")
 
@@ -33,4 +34,8 @@ class FlagStore:
 
     def reset(self) -> None:
         with self._lock:
-            self._flags = {k: False for k in self._flags}
+            self._flags = {
+                "drogue":            False,
+                "main":              False,
+                "airbrake_dep_level": 0.0,
+            }

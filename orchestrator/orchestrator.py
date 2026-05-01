@@ -54,7 +54,8 @@ class Orchestrator:
                     rocketpy_socket.send_json({"status": "ok"}) # just an ack to continue lockstep
                     sensor_poll_count += 1
 
-                elif msg_type in ("DROGUE_POLL", "MAIN_POLL"):
+
+                elif msg_type in ("DROGUE_POLL", "MAIN_POLL", "AIRBRAKE_POLL"):
                     flags = self._flag_store.snapshot()
                     rocketpy_socket.send_json({**flags})
                     parachute_poll_count += 1

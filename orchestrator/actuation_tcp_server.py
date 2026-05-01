@@ -13,11 +13,6 @@ class ActuationTcpServer:
         self._port = port
         self._flag_store = flag_store
         self._server_sock = None
-        self._handlers = {
-            CommandId.DROGUE_FIRE: self._handle_drogue,
-            CommandId.MAIN_FIRE:   self._handle_main,
-            CommandId.CONTROL:     self._handle_control,
-        }
 
     def start(self) -> None:
         self._server_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -37,31 +32,27 @@ class ActuationTcpServer:
         with conn:
             while True:
                 try:
-                    raw = conn.recv(1)
-                    if not raw:
+                    packet_header = conn.recv(1)
+                    if not packet_header:
                         raise ConnectionResetError("Connection closed")
-                    cmd = ActuationCommand.from_bytes(raw)
-                    handler = self._handlers.get(cmd.cmd_id)
-                    if handler:
-                        handler(cmd)
+
+                    cmd_id = CommandId(packet_header[0])
+
+                    if cmd_id == CommandId.AIRBRAKE_SET:
+                        body = conn.recv(4)
+                        raw = packet_header + body
                     else:
-                        log.warning(f"No handler for {cmd.cmd_id}")
+                        raw = packet_header
+
+                    cmd = ActuationCommand.from_bytes(raw)
+                    self._flag_store.actuate(cmd)
+
                 except socket.timeout:
                     continue
                 except Exception as e:
                     log.error(f"Connection error: {e}")
                     return
 
-    def _handle_drogue(self, cmd: ActuationCommand) -> None:
-        log.info("DROGUE_FIRE command received")
-        self._flag_store.actuate(cmd)
-
-    def _handle_main(self, cmd: ActuationCommand) -> None:
-        log.info("MAIN_FIRE command received")
-        self._flag_store.actuate(cmd)
-
-    def _handle_control(self, cmd: ActuationCommand) -> None:
-        log.warning("CONTROL command received but not implemented")
 
     def close(self) -> None:
         if self._server_sock:
