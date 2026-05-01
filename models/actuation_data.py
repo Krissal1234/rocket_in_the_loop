@@ -19,7 +19,7 @@ _AIRBRAKE_SIZE   = struct.calcsize(_AIRBRAKE_FORMAT)
 @dataclass
 class ActuationCommand:
     cmd_id:           CommandId
-    deployment_level: Optional[float] = 0  # only for AIRBRAKE_SET
+    deployment_level: Optional[float] = 0.0  # only for AIRBRAKE_SET
 
     @classmethod
     def from_bytes(cls, raw: bytes) -> "ActuationCommand":

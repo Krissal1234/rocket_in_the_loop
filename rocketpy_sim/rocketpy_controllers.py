@@ -18,6 +18,7 @@ pid = {
     "prev_alt":   None,
     "burned_out": False,
     "descent_count": 0,
+    "P0": None,
 }
 
 class RocketPyControllers:
@@ -62,7 +63,6 @@ class RocketPyControllers:
         resp = self._send_recv({"type": "MAIN_POLL"})
         return bool(resp.get("main", False))
 
-
     def airbrake_controller(self, time, sampling_rate, state_vector, state_history, observed_variables, air_brakes, sensors, environment):
         resp = self._send_recv({"type": "AIRBRAKE_POLL"})
         air_brakes.deployment_level = float(resp.get("airbrake_dep_level"))
@@ -74,30 +74,6 @@ class RocketPyControllers:
 
     def main_trigger_non_sim(self, pressure, height, state):
         return False
-
-    # def airbrake_controller_non_sim(self, time, sampling_rate, state_vector, state_history, observed_variables, air_brakes, sensors, environment):
-    #     new_deployment_level = 0
-
-    #     if time <= 11.4:
-    #         new_deployment_level = 1
-    #     else:
-    #         new_deployment_level = (
-    #             -0.002906 * np.power(time, 3)
-    #             + 0.1497 * np.power(time, 2)
-    #             + -2.563 * time
-    #             + 14.96
-    #         )
-
-    #     if time > 19.6:
-    #         new_deployment_level = 0
-
-    #     if time < 3.8:
-    #         new_deployment_level = 0
-
-    #     air_brakes.deployment_level = new_deployment_level
-
-    #     return time, air_brakes.deployment_level
-
 
 
     def airbrake_controller_non_sim(self,
@@ -116,8 +92,10 @@ class RocketPyControllers:
         (ax, ay, az) = accel
         (wx, wy, wz) = gyro
 
-        P0 = environment.pressure(environment.elevation)
-        altitude = 44330.0 * (1.0 - (pressure / P0) ** (1.0 / 5.255))
+        if pid["P0"] is None:
+            pid["P0"] = pressure
+
+        altitude = 44330.0 * (1.0 - (pressure / pid["P0"]) ** (1.0 / 5.255))
 
         # during boost az is large
         if not pid["burned_out"]:
