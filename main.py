@@ -10,36 +10,37 @@ from rocketpy_sim.rocketpy_controllers import RocketPyControllers
 from rocketpy_sim.setup import build_flight
 
 ENABLE_SIL = True
-
 logging.basicConfig(
+    filename="test.log",
     level=logging.INFO,
     format="%(asctime)s [%(name)s] %(message)s"
 )
+
 log = logging.getLogger("ritl")
 
 def main():
     # share context in this test as it is more resource efficient
 
     ctx = zmq.Context.instance()
-    ready = threading.Event()
 
-    orch = Orchestrator(ctx, ready_event=ready)
+    if ENABLE_SIL:
+        ready = threading.Event()
+        orch = Orchestrator(ctx, ready_event=ready)
 
     ctrl = RocketPyControllers(ctx)
 
-    orch_thread = threading.Thread(
-        target=orch.run,
-        name="orchestrator",
-        daemon=True
-    )
-    orch_thread.start()
-
-    ready.wait()
-    log.info("orchestrator ready")
-
+    if ENABLE_SIL:
+        orch_thread = threading.Thread(
+            target=orch.run,
+            name="orchestrator",
+            daemon=True
+        )
+        orch_thread.start()
+        ready.wait()
+        log.info("orchestrator ready")
+        ctrl.connect()
 
     log.info("building flight...")
-    ctrl.connect()
 
 
     time.sleep(2)
@@ -50,7 +51,7 @@ def main():
 
 
 
-    orch.close()
+    # orch.close()
 
     log.info("simulation complete")
 

@@ -33,14 +33,6 @@ class SensorData:
             gyro_z  = float(gyro.get("z",  0.0)),
         )
 
-    @classmethod
-    def from_bytes(cls, raw: bytes) -> "SensorData":
-        if len(raw) != _SIZE:
-            raise ValueError(f"Expected {_SIZE} bytes, got {len(raw)}")
-        fields = struct.unpack(_FORMAT, raw)
-        return cls(*fields)
-
-
     def to_bytes(self) -> bytes:
         return struct.pack(
             _FORMAT,

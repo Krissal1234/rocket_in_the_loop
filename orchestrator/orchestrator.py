@@ -49,7 +49,7 @@ class Orchestrator:
 
                 if msg_type == "SENSOR":
                     sensor = SensorData.from_dict(msg)
-                    log.info(f"Telemetry: t={sensor.t}, baro={sensor.baro}")
+                    # log.info(f"Telemetry: t={sensor.t}, baro={sensor.baro}")
                     self._fsw.send_sensor(sensor)
                     rocketpy_socket.send_json({"status": "ok"}) # just an ack to continue lockstep
                     sensor_poll_count += 1
@@ -57,6 +57,7 @@ class Orchestrator:
 
                 elif msg_type in ("DROGUE_POLL", "MAIN_POLL", "AIRBRAKE_POLL"):
                     flags = self._flag_store.snapshot()
+                    log.info(flags)
                     rocketpy_socket.send_json({**flags})
                     parachute_poll_count += 1
 

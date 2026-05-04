@@ -19,8 +19,12 @@ class FswTcpClient:
     def connect(self):
         self._sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self._sock.settimeout(2.0)
-        self._sock.connect((self._host, self._port))
-        log.info(f"Connected to FSW TCP server at {self._host}:{self._port}")
+        try:
+            self._sock.connect((self._host, self._port))
+            log.info(f"Connected to FSW TCP server at {self._host}:{self._port}")
+        except:
+            log.error(f"Unable to connect to FSW TCP server at {self._host}:{self._port}")
+
 
     def send_sensor(self, sensor: SensorData) -> bool:
         payload = sensor.to_bytes()

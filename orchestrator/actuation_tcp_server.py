@@ -32,20 +32,17 @@ class ActuationTcpServer:
         with conn:
             while True:
                 try:
-                    packet_header = conn.recv(1)
-                    if not packet_header:
+                    header = conn.recv(1)
+                    if not header:
                         raise ConnectionResetError("Connection closed")
+                    # cmd_id = CommandId(header[0])
+                    # log.info(f"command id received: {cmd_id}")
 
-                    cmd_id = CommandId(packet_header[0])
-
-                    if cmd_id == CommandId.AIRBRAKE_SET:
-                        body = conn.recv(4)
-                        raw = packet_header + body
-                    else:
-                        raw = packet_header
-
+                    body = conn.recv(4)  # always read deployment_level
+                    raw = header + body
                     cmd = ActuationCommand.from_bytes(raw)
                     self._flag_store.actuate(cmd)
+
 
                 except socket.timeout:
                     continue

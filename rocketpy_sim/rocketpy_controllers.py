@@ -92,21 +92,23 @@ class RocketPyControllers:
         (ax, ay, az) = accel
         (wx, wy, wz) = gyro
 
+        # we get base pressure from first sample
         if pid["P0"] is None:
             pid["P0"] = pressure
 
         altitude = 44330.0 * (1.0 - (pressure / pid["P0"]) ** (1.0 / 5.255))
+        # print(f"dt={dt:.4f} t={time:.4f}")
 
-        # during boost az is large
-        if not pid["burned_out"]:
-            if az > BOOST_ACCEL_THRESHOLD:
-                # still burning
-                pid["vz"]      = 0.0
-                pid["prev_alt"] = altitude
-                air_brakes.deployment_level = 0
-                return (time, 0.0, altitude)
-            else:
-                pid["burned_out"] = True
+        # # during boost az is large
+        # if not pid["burned_out"]:
+        #     if az > BOOST_ACCEL_THRESHOLD:
+        #         # still burning
+        #         pid["vz"]      = 0.0
+        #         pid["prev_alt"] = altitude
+        #         air_brakes.deployment_level = 0
+        #         return (time, 0.0, altitude)
+        #     else:
+        #         pid["burned_out"] = True
 
         g = 9.81
         pid["vz"] += az * dt # euler integration here to get velicity in z
@@ -122,7 +124,7 @@ class RocketPyControllers:
                 air_brakes.deployment_level = 0
                 pid["integral"]  = 0.0
                 pid["prev_dep"]  = 0.0
-                pid["burned_out"] = False
+                # pid["burned_out"] = False
                 return (time, 0.0, altitude)
 
         pid["prev_alt"] = altitude
@@ -137,6 +139,11 @@ class RocketPyControllers:
 
         raw     = Kp * error + Ki * pid["integral"]
         new_dep = max(0.0, min(1.0, raw))
+        # print(new_dep)
+        # print(f"dt={dt:.4f} t={time:.4f} alt={altitude:.1f} pred={predicted_apogee:.1f} err={error:.1f} dep={new_dep:.3f} vz={vz:.2f}")
+        log.info(f"t={time:.2f} az={az:.4f} burned_out={pid['burned_out']} vz={pid['vz']:.2f}, lvl={new_dep}")
+
+
 
         air_brakes.deployment_level = new_dep
 

@@ -103,9 +103,9 @@ class FlightBuilder:
 
     def _add_sensors(self):
         log.info("adding sensors...")
-        accel = Accelerometer(sampling_rate=100, consider_gravity=False, name="IMU")
-        baro  = Barometer(sampling_rate=100, name="Barometer")
-        gyro  = Gyroscope(sampling_rate=100, name="Gyroscope")
+        accel = Accelerometer(sampling_rate=10, consider_gravity=False, name="IMU")
+        baro  = Barometer(sampling_rate=10, name="Barometer")
+        gyro  = Gyroscope(sampling_rate=10, name="Gyroscope")
 
         self.rocket.add_sensor(accel, position=0.5)
         self.rocket.add_sensor(baro,  position=0.5)
@@ -121,7 +121,7 @@ class FlightBuilder:
             self.rocket.add_air_brakes(
                 drag_coefficient_curve=[[0, 0, 0.0], [0, 0, 0.0], [0, 0, 0.0], [0, 0, 0.0]],
                 controller_function=self.ctrl.sensor_controller,
-                sampling_rate=100,
+                sampling_rate=10,
                 name="SensorTransmitter",
                 controller_name="SensorTransmitterController",
             )
