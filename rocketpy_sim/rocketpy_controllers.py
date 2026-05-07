@@ -7,8 +7,8 @@ log = logging.getLogger("ritl.controllers")
 ORCHESTRATOR_ADDRESS = "tcp://127.0.0.1:5560"
 
 TARGET_APOGEE = 3000
-Kp = 0.0001
-Ki = 0.00001
+Kp = 0.0006
+Ki = 0.00006
 BOOST_ACCEL_THRESHOLD = 15.0
 
 pid = {
@@ -19,12 +19,16 @@ pid = {
     "burned_out": False,
     "descent_count": 0,
     "P0": None,
+    "prev_time": 0,
+    "call_count" :0,
 }
 
 class RocketPyControllers:
     def __init__(self, ctx):
         self.socket = ctx.socket(zmq.REQ)
         self.socket.setsockopt(zmq.RCVTIMEO, 2000)
+        self._last_airbrake_dep_level = 0.0
+        self._count = 0
 
     def connect(self):
         self.socket.connect(ORCHESTRATOR_ADDRESS)
@@ -51,7 +55,9 @@ class RocketPyControllers:
             gyro_z  = float(gyro[2]),
         )
 
-        self._send_recv({"type": "SENSOR", **sensor.to_dict()})
+        resp = self._send_recv({"type": "SENSOR", **sensor.to_dict()})
+        self._last_airbrake_dep_level = float(resp.get("airbrake_dep_level", 0.0))
+
         return time
 
 
@@ -64,12 +70,16 @@ class RocketPyControllers:
         return bool(resp.get("main", False))
 
     def airbrake_controller(self, time, sampling_rate, state_vector, state_history, observed_variables, air_brakes, sensors, environment):
-        resp = self._send_recv({"type": "AIRBRAKE_POLL"})
-        air_brakes.deployment_level = float(resp.get("airbrake_dep_level"))
+        # resp = self._send_recv({"type": "AIRBRAKE_POLL"})
+        # air_brakes.deployment_level = float(resp.get("airbrake_dep_level"))
+        # air_brakes.deployment_level = self._flag_store.get_airbrake_dep_level()
+        air_brakes.deployment_level = self._last_airbrake_dep_level
+
         return time
 
 # Non sim functions
     def drogue_trigger_non_sim(self, pressure, height, state):
+
         return True if state[5] < 5 and state[2] > 300 else False
 
     def main_trigger_non_sim(self, pressure, height, state):
@@ -80,7 +90,19 @@ class RocketPyControllers:
         time, sampling_rate, state_vec, state_history,
         observed_variables, air_brakes, sensors, environment
     ):
+        if observed_variables and observed_variables[-1][1] == time:
+            return [air_brakes.deployment_level, time]
+
+        # # pid["call_count"] = pid.get("call_count", 0) + 1
+        # # # log.info(f"t={time:.2f} call_count={pid['call_count']}")
+        # # return
+        # if time <= pid["prev_time"] and pid["prev_time"] >= 0.0:
+        #     air_brakes.deployment_level = pid["prev_dep"]
+        #     return (time, pid["prev_dep"], pid.get("prev_alt", 0.0))
+
+        pid["prev_time"] = time
         # return False
+
         dt = 1.0 / sampling_rate
 
         accel = sensors[0].measurement
@@ -147,6 +169,7 @@ class RocketPyControllers:
 
         air_brakes.deployment_level = new_dep
 
-        return (time, new_dep, altitude, predicted_apogee, vz)
+        return [new_dep, time]
+
     def close(self):
         self.socket.close()

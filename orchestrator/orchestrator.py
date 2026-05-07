@@ -46,16 +46,23 @@ class Orchestrator:
             try:
                 msg = rocketpy_socket.recv_json()
                 msg_type = msg.get("type")
-
                 if msg_type == "SENSOR":
                     sensor = SensorData.from_dict(msg)
-                    # log.info(f"Telemetry: t={sensor.t}, baro={sensor.baro}")
                     self._fsw.send_sensor(sensor)
-                    rocketpy_socket.send_json({"status": "ok"}) # just an ack to continue lockstep
+                    dep_level = self._flag_store.wait_for_airbrake(timeout=0.5)
+                    rocketpy_socket.send_json({
+                        "status": "ok",
+                        "airbrake_dep_level": dep_level,
+                    })
                     sensor_poll_count += 1
 
+                elif msg_type == "AIRBRAKE_POLL":
+                    flags = self._flag_store.snapshot()
+                    rocketpy_socket.send_json({"airbrake_dep_level": flags["airbrake_dep_level"]})
 
-                elif msg_type in ("DROGUE_POLL", "MAIN_POLL", "AIRBRAKE_POLL"):
+
+
+                elif msg_type in ("DROGUE_POLL", "MAIN_POLL"):
                     flags = self._flag_store.snapshot()
                     log.info(flags)
                     rocketpy_socket.send_json({**flags})

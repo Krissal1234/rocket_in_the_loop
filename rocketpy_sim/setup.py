@@ -103,9 +103,9 @@ class FlightBuilder:
 
     def _add_sensors(self):
         log.info("adding sensors...")
-        accel = Accelerometer(sampling_rate=10, consider_gravity=False, name="IMU")
-        baro  = Barometer(sampling_rate=10, name="Barometer")
-        gyro  = Gyroscope(sampling_rate=10, name="Gyroscope")
+        accel = Accelerometer(sampling_rate=100, consider_gravity=False, name="IMU")
+        baro  = Barometer(sampling_rate=100, name="Barometer")
+        gyro  = Gyroscope(sampling_rate=100, name="Gyroscope")
 
         self.rocket.add_sensor(accel, position=0.5)
         self.rocket.add_sensor(baro,  position=0.5)

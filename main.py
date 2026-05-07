@@ -11,7 +11,7 @@ from rocketpy_sim.setup import build_flight
 
 ENABLE_SIL = True
 logging.basicConfig(
-    filename="test.log",
+    # filename="test.log",
     level=logging.INFO,
     format="%(asctime)s [%(name)s] %(message)s"
 )
