@@ -9,7 +9,7 @@ from orchestrator.orchestrator import Orchestrator
 from rocketpy_sim.rocketpy_controllers import RocketPyControllers
 from rocketpy_sim.setup import build_flight
 
-ENABLE_SIL = False
+ENABLE_SIL = True
 logging.basicConfig(
     # filename="non_sil_test2.log",
     level=logging.INFO,
