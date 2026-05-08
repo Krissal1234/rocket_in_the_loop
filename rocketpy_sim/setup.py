@@ -163,7 +163,7 @@ class FlightBuilder:
             rocket=self.rocket,
             environment=self.env,
             max_time_step = 0.001,
-            # min_time_step = 0.001,
+            min_time_step = 0.001,
             rail_length=12,
             inclination=84,
             heading=133,

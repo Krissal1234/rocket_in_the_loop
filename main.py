@@ -9,9 +9,9 @@ from orchestrator.orchestrator import Orchestrator
 from rocketpy_sim.rocketpy_controllers import RocketPyControllers
 from rocketpy_sim.setup import build_flight
 
-ENABLE_SIL = True
+ENABLE_SIL = False
 logging.basicConfig(
-    filename="test.log",
+    # filename="non_sil_test2.log",
     level=logging.INFO,
     format="%(asctime)s [%(name)s] %(message)s"
 )
@@ -20,7 +20,6 @@ log = logging.getLogger("ritl")
 
 def main():
     # share context in this test as it is more resource efficient
-
     ctx = zmq.Context.instance()
 
     if ENABLE_SIL:

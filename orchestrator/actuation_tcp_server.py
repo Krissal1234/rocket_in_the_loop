@@ -35,8 +35,6 @@ class ActuationTcpServer:
                     header = conn.recv(1)
                     if not header:
                         raise ConnectionResetError("Connection closed")
-                    # cmd_id = CommandId(header[0])
-                    # log.info(f"command id received: {cmd_id}")
 
                     body = conn.recv(4)  # always read deployment_level
                     raw = header + body
