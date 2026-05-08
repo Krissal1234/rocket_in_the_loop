@@ -116,17 +116,17 @@ class NonSilControllers:
         predicted_apogee = altitude + (vz ** 2) / (2 * 9.81)
 
         # PI control
-        error             = predicted_apogee - TARGET_APOGEE
-        pid["integral"]  += error * dt
-        pid["integral"]   = max(-INTEGRAL_CLAMP, min(INTEGRAL_CLAMP, pid["integral"]))
+        error = predicted_apogee - TARGET_APOGEE
+        pid["integral"] += error * dt
+        pid["integral"]  = max(-INTEGRAL_CLAMP, min(INTEGRAL_CLAMP, pid["integral"]))
 
         raw     = Kp * error + Ki * pid["integral"]
         new_dep = max(0.0, min(1.0, raw))
 
-        log.info(
-            "t=%.2f alt=%.1f pred=%.1f err=%.1f dep=%.3f vz=%.2f",
-            time, altitude, predicted_apogee, error, new_dep, vz,
-        )
+        # log.info(
+        #     "t=%.2f alt=%.1f pred=%.1f err=%.1f dep=%.3f vz=%.2f",
+        #     time, altitude, predicted_apogee, error, new_dep, vz,
+        # )
 
         air_brakes.deployment_level = new_dep
         return time

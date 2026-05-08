@@ -19,10 +19,10 @@ class FlagStore:
         with self._lock:
             if cmd.cmd_id == CommandId.DROGUE_FIRE:
                 self._flags["drogue"] = True
-                log.info("FlagStore: drogue fired")
+                log.info(">>> DROGUE FIRED <<<")
             elif cmd.cmd_id == CommandId.MAIN_FIRE:
                 self._flags["main"] = True
-                log.info("FlagStore: main fired")
+                log.info(">>> MAIN FIRED <<<")
             elif cmd.cmd_id == CommandId.AIRBRAKE_SET:
                 self._flags["airbrake_dep_level"] = cmd.deployment_level
             else:

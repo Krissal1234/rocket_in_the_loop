@@ -46,11 +46,14 @@ def main():
     time.sleep(2)
     flight = build_flight(ENABLE_SIL, ctrl, "data/Camoes_flight")
 
-    flight.all_info()
+    log.info("=" * 40)
+    log.info("FLIGHT COMPLETE")
+    log.info("=" * 40)
 
-
-
-
+    time.sleep(2)
+    flight.prints.apogee_conditions()
+    flight.prints.events_registered()
+    flight.prints.impact_conditions()
     # orch.close()
 
     log.info("simulation complete")

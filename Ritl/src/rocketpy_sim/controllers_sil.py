@@ -31,6 +31,11 @@ class SilControllers:
 
     def sensor_controller(self,time, sampling_rate, state,state_history, observed_variables, air_brakes, sensors):
 
+        if time == self._last_time:
+            return time
+
+        self._last_time = time
+
         accel = sensors[0].measurement
         baro = sensors[1].measurement
         gyro = sensors[2].measurement
