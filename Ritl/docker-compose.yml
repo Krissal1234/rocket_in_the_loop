@@ -1,9 +1,7 @@
 services:
   ritl:
-    build: .
+    image: krissal1234/rocket-in-the-loop:v1.0.0
     container_name: ritl
-    volumes:
-      - .:/app
     ports:
       - "50101:50101"
     extra_hosts:
