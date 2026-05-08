@@ -6,7 +6,8 @@ import time
 import zmq
 
 from orchestrator.orchestrator import Orchestrator
-from rocketpy_sim.rocketpy_controllers import RocketPyControllers
+from rocketpy_sim.controllers_non_sil import NonSilControllers
+from rocketpy_sim.controllers_sil import SilControllers
 from rocketpy_sim.setup import build_flight
 
 ENABLE_SIL = True
@@ -25,10 +26,8 @@ def main():
     if ENABLE_SIL:
         ready = threading.Event()
         orch = Orchestrator(ctx, ready_event=ready)
+        ctrl = SilControllers(ctx)
 
-    ctrl = RocketPyControllers(ctx)
-
-    if ENABLE_SIL:
         orch_thread = threading.Thread(
             target=orch.run,
             name="orchestrator",
@@ -38,6 +37,8 @@ def main():
         ready.wait()
         log.info("orchestrator ready")
         ctrl.connect()
+    else:
+        ctrl = NonSilControllers()
 
     log.info("building flight...")
 

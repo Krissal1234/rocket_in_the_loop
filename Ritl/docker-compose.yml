@@ -7,7 +7,7 @@ services:
     ports:
       - "50101:50101"
     extra_hosts:
-      - "host.docker.internal:host-gateway"    # lets container reach host on Linux
+      - "host.docker.internal:host-gateway"
     environment:
       - PYTHONUNBUFFERED=1
     networks:

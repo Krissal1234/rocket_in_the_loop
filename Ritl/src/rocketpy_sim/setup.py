@@ -2,20 +2,19 @@ import logging
 import datetime
 from rocketpy import Flight, Rocket, SolidMotor, Environment
 from rocketpy import Accelerometer, Barometer, Gyroscope
-from .rocketpy_controllers import RocketPyControllers
 
 
 log = logging.getLogger("ritl.rocketpy")
 
 class FlightBuilder:
 
-    def __init__(self, enable_sil, controllers : RocketPyControllers, data_folder: str = "data"):
+    def __init__(self, enable_sil, controller, data_folder: str = "data"):
         self.env = None
         self.motor = None
         self.rocket = None
         self.flight = None
         self.data_folder = data_folder
-        self.ctrl = controllers
+        self.ctrl = controller
         self.enable_sil = enable_sil
 
     def build(self) -> Flight:
@@ -114,7 +113,6 @@ class FlightBuilder:
     def _add_controllers(self):
         log.info("adding controllers...")
 
-
         # At the time of development, rocketpy does not include custom controllers
         # Airbrakes currently serve as a dummy controller simply to send sensor data to orchestrator
         if self.enable_sil:
@@ -128,7 +126,7 @@ class FlightBuilder:
 
         self.rocket.add_air_brakes(
             drag_coefficient_curve=f"{self.data_folder}/drag_airbrakes.csv",
-            controller_function=self.ctrl.airbrake_controller if self.enable_sil else self.ctrl.airbrake_controller_non_sim,
+            controller_function=self.ctrl.airbrake_controller,
             name="AirBrakes",
             controller_name="AirBrakesController",
             sampling_rate=10,
@@ -143,7 +141,7 @@ class FlightBuilder:
         self.rocket.add_parachute(
             name="drogue",
             cd_s=1.0,
-            trigger=self.ctrl.drogue_trigger if self.enable_sil else self.ctrl.drogue_trigger_non_sim,
+            trigger=self.ctrl.drogue_trigger,
             sampling_rate=100,
             lag=1.5,
             noise=(0, 8.3, 0.5),
@@ -151,7 +149,7 @@ class FlightBuilder:
         self.rocket.add_parachute(
             name="main",
             cd_s=10.0,
-            trigger=self.ctrl.main_trigger if self.enable_sil else self.ctrl.main_trigger_non_sim,
+            trigger=self.ctrl.main_trigger,
             sampling_rate=100,
             lag=1.5,
             noise=(0, 8.3, 0.5),
@@ -170,5 +168,5 @@ class FlightBuilder:
             time_overshoot=False,
         )
 
-def build_flight(enable_sil, data_folder, controllers: RocketPyControllers) -> Flight:
-    return FlightBuilder(enable_sil, data_folder, controllers).build()
+def build_flight(enable_sil, data_folder, controller) -> Flight:
+    return FlightBuilder(enable_sil, data_folder, controller).build()
