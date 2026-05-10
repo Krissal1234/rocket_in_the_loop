@@ -57,7 +57,7 @@ class Orchestrator:
 
                 elif msg_type in ("DROGUE_POLL", "MAIN_POLL", "AIRBRAKE_POLL"):
                     flags = self._flag_store.snapshot()
-                    log.info(flags)
+                    # log.info(flags)
                     rocketpy_socket.send_json({**flags})
                     parachute_poll_count += 1
 

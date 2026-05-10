@@ -12,6 +12,7 @@ services:
       - PYTHONUNBUFFERED=1
     networks:
       - ritl-net
+    command: python main.py --mode ${SIM_MODE:-sil}
 
 networks:
   ritl-net:

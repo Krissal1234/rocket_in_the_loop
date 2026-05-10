@@ -60,8 +60,16 @@ class SilControllers:
         return bool(resp.get("main", False))
 
     def airbrake_controller(self, time, sampling_rate, state_vector, state_history, observed_variables, air_brakes, sensors, environment):
+
+        if time == self._last_time:
+            return time
+        self._last_time = time
         resp = self._send_recv({"type": "AIRBRAKE_POLL"})
         dep_level = resp.get("airbrake_dep_level", 0.0)
+
+        if dep_level > 0 or air_brakes.deployment_level > 0:
+            log.info(f"DEP {time:.4f} {dep_level:.4f}")
+
         air_brakes.deployment_level = dep_level
         return time
 

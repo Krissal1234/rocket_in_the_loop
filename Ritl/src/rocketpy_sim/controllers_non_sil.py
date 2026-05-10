@@ -52,7 +52,7 @@ class NonSilControllers:
 
         if not r["drogue_fired"] and r["baro_count"] >= APOGEE_CONFIRM_COUNT:
             r["drogue_fired"] = True
-            log.info("Drogue fired at pressure=%.2f hPa", pressure / 100.0)
+            # log.info("Drogue fired at pressure=%.2f hPa", pressure / 100.0)
 
         return r["drogue_fired"]
 
@@ -61,7 +61,7 @@ class NonSilControllers:
         if r["drogue_fired"] and not r["main_fired"]:
             if (pressure / 100.0) >= r["min_baro"] + MAIN_DEPLOY_DELTA_HPA:
                 r["main_fired"] = True
-                log.info("Main chute fired at pressure=%.2f hPa", pressure / 100.0)
+                # log.info("Main chute fired at pressure=%.2f hPa", pressure / 100.0)
 
         return r["main_fired"]
 
@@ -123,10 +123,13 @@ class NonSilControllers:
         raw     = Kp * error + Ki * pid["integral"]
         new_dep = max(0.0, min(1.0, raw))
 
-        log.info(
-            "t=%.2f alt=%.1f pred=%.1f err=%.1f dep=%.3f vz=%.2f",
-            time, altitude, predicted_apogee, error, new_dep, vz,
-        )
+        # log.info(
+        #     "t=%.2f alt=%.1f pred=%.1f err=%.1f dep=%.3f vz=%.2f",
+        #     time, altitude, predicted_apogee, error, new_dep, vz,
+        # )
+
+        if new_dep > 0 or air_brakes.deployment_level > 0:
+            log.info(f"DEP {time:.4f} {new_dep:.4f}")
 
         air_brakes.deployment_level = new_dep
         return time
