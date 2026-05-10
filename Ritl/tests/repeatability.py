@@ -166,11 +166,11 @@ def main():
     print(f"\nRepeatability test: {args.runs} runs, mode={args.mode}")
     print(f"Logs directory: {LOGS_DIR.resolve()}\n")
 
-    if args.mode in ("nonsil", "both"):
-        run_batch("nonsil", args.runs)
-
     if args.mode in ("sil", "both"):
         run_batch("sil", args.runs)
+
+    if args.mode in ("nonsil", "both"):
+        run_batch("nonsil", args.runs)
 
     kill_fprime_gds()
     log("All done.")
