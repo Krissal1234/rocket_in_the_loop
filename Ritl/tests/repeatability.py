@@ -172,6 +172,7 @@ def main():
     if args.mode in ("sil", "both"):
         run_batch("sil", args.runs)
 
+    kill_fprime_gds()
     log("All done.")
 
 
