@@ -13,7 +13,7 @@ _HEADER_FORMAT = ">B"
 _HEADER_SIZE   = struct.calcsize(_HEADER_FORMAT)
 
 # airbrake body — 1 float deployment level 0.0 - 1.0
-_AIRBRAKE_FORMAT = ">Bf"
+_AIRBRAKE_FORMAT = ">Bd"
 _AIRBRAKE_SIZE   = struct.calcsize(_AIRBRAKE_FORMAT)
 
 @dataclass
