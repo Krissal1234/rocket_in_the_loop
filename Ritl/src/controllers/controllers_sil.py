@@ -18,10 +18,11 @@ class SilControllers:
         self._address = address
         self._socket  = None
         self._last_time = None
+        self._pending_dep_level = 0.0
 
     def connect(self):
         self._socket = self._ctx.socket(zmq.REQ)
-        self._socket.setsockopt(zmq.RCVTIMEO, 2000)
+        self._socket.setsockopt(zmq.RCVTIMEO, 8000)
         self._socket.connect(self._address)
         log.info("SilControllers connected to FPrime at %s", self._address)
 
@@ -46,7 +47,8 @@ class SilControllers:
             gyro_z = float(gyro[2]),
         )
 
-        self._send_recv({"type": "SENSOR", **sensor.to_dict()})
+        resp = self._send_recv({"type": "SENSOR", **sensor.to_dict()})
+        self._pending_dep_level = float(resp.get("airbrake_dep_level", 0.0))
         return time
 
     def drogue_trigger(self, pressure, height, state) -> bool:
@@ -64,11 +66,10 @@ class SilControllers:
         if time == self._last_time:
             return time
         self._last_time = time
-        resp = self._send_recv({"type": "AIRBRAKE_POLL"})
-        dep_level = resp.get("airbrake_dep_level", 0.0)
 
+        dep_level = self._pending_dep_level
         if dep_level > 0 or air_brakes.deployment_level > 0:
-            log.info(f"DEP {time:.4f} {dep_level:.4f}")
+            log.info(f"DEP {time:.4f} {dep_level:.6f}")
 
         air_brakes.deployment_level = dep_level
         return time
