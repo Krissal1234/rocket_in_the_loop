@@ -36,7 +36,7 @@ class ActuationTcpServer:
                     if not header:
                         raise ConnectionResetError("Connection closed")
 
-                    body = conn.recv(4)  # always read deployment_level
+                    body = conn.recv(8)  # always read deployment_level
                     raw = header + body
                     cmd = ActuationCommand.from_bytes(raw)
                     self._flag_store.actuate(cmd)

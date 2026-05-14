@@ -65,6 +65,8 @@ class NonSilControllers:
 
         return r["main_fired"]
 
+
+
     def airbrake_controller(self, time,sampling_rate,state_vector, state_history, observed_variables, air_brakes, sensors, environment):
       # guard becuase controllers are called twice
         if time == self._last_time:
@@ -129,7 +131,7 @@ class NonSilControllers:
         # )
 
         if new_dep > 0 or air_brakes.deployment_level > 0:
-            log.info(f"DEP {time:.4f} {new_dep:.4f}")
+            log.info(f"DEP {time:.4f} {new_dep:.6f}")
 
         air_brakes.deployment_level = new_dep
         return time

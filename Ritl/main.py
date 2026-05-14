@@ -4,10 +4,13 @@ import logging
 import time
 import os
 import zmq
+import rockets.cameos as cameos
+import rockets.calisto as calisto
+
 from orchestrator.orchestrator import Orchestrator
-from rocketpy_sim.controllers_non_sil import NonSilControllers
-from rocketpy_sim.controllers_sil import SilControllers
-from rocketpy_sim.setup import build_flight
+from controllers.controllers_non_sil import NonSilControllers
+from controllers.controllers_sil import SilControllers
+
 
 
 def parse_args():
@@ -63,8 +66,8 @@ def main():
         ctrl = NonSilControllers()
 
     log.info("building flight...")
-    time.sleep(10)
-    flight = build_flight(enable_sil, ctrl, "data/Camoes_flight")
+    time.sleep(1)
+    flight = calisto.build(ctrl, enable_sil=enable_sil)
 
     # extracting drogue and main deployent times
     drogue_time = None
