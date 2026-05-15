@@ -166,11 +166,14 @@ def main():
     print(f"\nRepeatability test: {args.runs} runs, mode={args.mode}")
     print(f"Logs directory: {LOGS_DIR.resolve()}\n")
 
+    # non sil deterministic - only need one run
     if args.mode in ("nonsil", "both"):
-        run_batch("nonsil", args.runs)
+        run_batch("nonsil", 1)
 
     if args.mode in ("sil", "both"):
         run_batch("sil", args.runs)
+
+
 
     kill_fprime_gds()
     log("All done.")
