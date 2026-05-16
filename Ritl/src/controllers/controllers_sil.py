@@ -30,26 +30,26 @@ class SilControllers:
         self._socket.send_json(data)
         return self._socket.recv_json()
 
-    def sensor_controller(self,time, sampling_rate, state,state_history, observed_variables, air_brakes, sensors):
+    # def sensor_controller(self,time, sampling_rate, state,state_history, observed_variables, air_brakes, sensors):
 
-        accel = sensors[0].measurement
-        baro = sensors[1].measurement
-        gyro = sensors[2].measurement
+    #     accel = sensors[0].measurement
+    #     baro = sensors[1].measurement
+    #     gyro = sensors[2].measurement
 
-        sensor = SensorData(
-            t = float(time),
-            accel_x = float(accel[0]),
-            accel_y = float(accel[1]),
-            accel_z = float(accel[2]),
-            baro = float(baro),
-            gyro_x = float(gyro[0]),
-            gyro_y = float(gyro[1]),
-            gyro_z = float(gyro[2]),
-        )
+    #     sensor = SensorData(
+    #         t = float(time),
+    #         accel_x = float(accel[0]),
+    #         accel_y = float(accel[1]),
+    #         accel_z = float(accel[2]),
+    #         baro = float(baro),
+    #         gyro_x = float(gyro[0]),
+    #         gyro_y = float(gyro[1]),
+    #         gyro_z = float(gyro[2]),
+    #     )
 
-        resp = self._send_recv({"type": "SENSOR", **sensor.to_dict()})
-        self._pending_dep_level = float(resp.get("airbrake_dep_level", 0.0))
-        return time
+    #     resp = self._send_recv({"type": "SENSOR", **sensor.to_dict()})
+    #     self._pending_dep_level = float(resp.get("airbrake_dep_level", 0.0))
+    #     return time
 
     def drogue_trigger(self, pressure, height, state) -> bool:
         """Ask Orchestrator double buffer whether to fire the drogue chute."""
@@ -62,12 +62,30 @@ class SilControllers:
         return bool(resp.get("main", False))
 
     def airbrake_controller(self, time, sampling_rate, state_vector, state_history, observed_variables, air_brakes, sensors, environment):
-
         if time == self._last_time:
             return time
         self._last_time = time
 
-        dep_level = self._pending_dep_level
+        accel = sensors[0].measurement
+        baro  = sensors[1].measurement
+        gyro  = sensors[2].measurement
+
+        sensor = SensorData(
+            t       = float(time),
+            accel_x = float(accel[0]),
+            accel_y = float(accel[1]),
+            accel_z = float(accel[2]),
+            baro    = float(baro),
+            gyro_x  = float(gyro[0]),
+            gyro_y  = float(gyro[1]),
+            gyro_z  = float(gyro[2]),
+        )
+        # log.info(f"SENSOR t={float(time):.4f} az={float(accel[2]):.6f} baro={float(baro):.6f}")
+
+        resp = self._send_recv({"type": "SENSOR", **sensor.to_dict()})
+
+        dep_level = float(resp.get("airbrake_dep_level", 0.0))
+
         if dep_level > 0 or air_brakes.deployment_level > 0:
             log.info(f"DEP {time:.4f} {dep_level:.6f}")
 

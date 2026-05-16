@@ -72,6 +72,7 @@ class NonSilControllers:
         if time == self._last_time:
             return time
 
+
         dt = (time - self._last_time) if self._last_time is not None else 1.0 / sampling_rate
         self._last_time = time
 
@@ -80,6 +81,9 @@ class NonSilControllers:
 
         ax, ay, az = accel
         pid = self._pid
+
+        log.info("TICK t=%.4f az=%.4f burned_out=%s boosting=%s",
+            time, az, pid["burned_out"], az > BOOST_ACCEL_THRESHOLD)
 
         # get ground pressure on first call
         if pid["P0"] is None:
@@ -114,11 +118,11 @@ class NonSilControllers:
 
         pid["prev_alt"] = altitude
 
-        vz               = pid["vz"]
+        vz= pid["vz"]
         predicted_apogee = altitude + (vz ** 2) / (2 * 9.81)
 
         # PI control
-        error             = predicted_apogee - TARGET_APOGEE
+        error = predicted_apogee - TARGET_APOGEE
         pid["integral"]  += error * dt
         pid["integral"]   = max(-INTEGRAL_CLAMP, min(INTEGRAL_CLAMP, pid["integral"]))
 
