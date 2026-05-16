@@ -34,8 +34,8 @@ class FlagStore:
             if not self._fsw_active:
                 return self._flags["airbrake_dep_level"]
 
-        got = self._airbrake_event.wait(timeout=timeout)
         self._airbrake_event.clear()
+        got = self._airbrake_event.wait(timeout=timeout)
 
         with self._lock:
             if not got:

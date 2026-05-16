@@ -82,8 +82,6 @@ class NonSilControllers:
         ax, ay, az = accel
         pid = self._pid
 
-        log.info("TICK t=%.4f az=%.4f burned_out=%s boosting=%s",
-            time, az, pid["burned_out"], az > BOOST_ACCEL_THRESHOLD)
 
         # get ground pressure on first call
         if pid["P0"] is None:
