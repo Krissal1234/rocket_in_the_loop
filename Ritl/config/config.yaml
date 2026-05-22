@@ -22,6 +22,7 @@ network:
   #   Docker:   host.docker.internal
   #   HIL (RPi): set to the board IP, e.g. 10.42.0.142
   fsw_host: 10.42.0.142
+  # fsw_host: host.docker.internal
 
   # TCP port RITL sends sensor data to FSW (uplink)
   fsw_sensor_port: 50100

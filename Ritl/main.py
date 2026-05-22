@@ -54,11 +54,11 @@ def main():
     drogue_time = main_time = None
     for t, chute in flight.parachute_events:
         if "drogue" in chute.name.lower() and drogue_time is None: drogue_time = t
-        if "main"   in chute.name.lower() and main_time   is None: main_time   = t
+        if "main"   in chute.name.lower() and main_time is None: main_time = t
 
     log.info("APOGEE %.4f %.4f", flight.apogee - flight.env.elevation, flight.apogee_time)
     log.info("DROGUE %.4f", drogue_time)
-    log.info("MAIN   %.4f", main_time)
+    log.info("MAIN %.4f", main_time)
     log.info("WALL_TIME %.4f", time.time() - sim_start)
 
     alt = np.array(flight.z.source)
