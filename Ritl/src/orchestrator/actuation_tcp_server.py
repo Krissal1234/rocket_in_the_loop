@@ -24,7 +24,6 @@ class ActuationTcpServer:
         conn, addr = self._server_sock.accept()  # blocks until FSW connects
         log.info(f"FSW connected from {addr}")
 
-        # This will now safely find self._handle_connection
         threading.Thread(
             target=self._handle_connection,
             args=(conn,),

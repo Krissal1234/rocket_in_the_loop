@@ -10,7 +10,6 @@ ACK_BYTE = 0x06
 
 class FswTcpClient:
 # TCP client that connects with FPrime TCP server to send Sensor Data and wait for ACK back.
-
     def __init__(self, host: str, port: int):
         self._host = host
         self._port = port
@@ -18,14 +17,12 @@ class FswTcpClient:
         self._lock = threading.Lock()
 
     def connect(self):
-        """Connect to FSW TCP server, retrying until successful."""
         while True:
             self._sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self._sock.settimeout(2.0)
             try:
                 log.info(f"Attempting to connect to FSW TCP server at {self._host}:{self._port}...")
                 self._sock.connect((self._host, self._port))
-                # Optional: Disable Nagle's algorithm for HIL low latency
                 self._sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
                 log.info(f"Successfully connected to FSW TCP server!")
                 break

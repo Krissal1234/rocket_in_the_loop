@@ -7,8 +7,8 @@ log = logging.getLogger("ritl.flag_store")
 class FlagStore:
     def __init__(self):
         self._flags = {
-            "drogue": False,
-            "main":   False,
+            "drogue":False,
+            "main": False,
             "airbrake_dep_level": 0.0,
         }
         self._lock = threading.Lock()
@@ -50,8 +50,8 @@ class FlagStore:
     def reset(self) -> None:
         with self._lock:
             self._flags = {
-                "drogue":             False,
-                "main":               False,
+                "drogue": False,
+                "main": False,
                 "airbrake_dep_level": 0.0,
             }
             self._fsw_active = False

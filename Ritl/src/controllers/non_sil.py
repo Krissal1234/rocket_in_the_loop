@@ -6,13 +6,13 @@ log = logging.getLogger("ritl.controllers.non_sil")
 TARGET_APOGEE = 3000
 
 # air-brake PI
-Kp             = 0.001
-Ki             = 0.0001
+Kp = 0.001
+Ki = 0.0001
 BOOST_ACCEL_THRESHOLD = 15.0 #— below this after boost means burnout
 INTEGRAL_CLAMP = 1000.0
 
 # baro-based apogee detection
-APOGEE_BARO_DELTA    = 0.5
+APOGEE_BARO_DELTA = 0.5
 APOGEE_CONFIRM_COUNT = 5
 
 MAIN_DEPLOY_DELTA_HPA = 40.0
@@ -52,7 +52,6 @@ class NonSilControllers:
 
         if not r["drogue_fired"] and r["baro_count"] >= APOGEE_CONFIRM_COUNT:
             r["drogue_fired"] = True
-            # log.info("Drogue fired at pressure=%.2f hPa", pressure / 100.0)
 
         return r["drogue_fired"]
 
@@ -61,7 +60,6 @@ class NonSilControllers:
         if r["drogue_fired"] and not r["main_fired"]:
             if (pressure / 100.0) >= r["min_baro"] + MAIN_DEPLOY_DELTA_HPA:
                 r["main_fired"] = True
-                # log.info("Main chute fired at pressure=%.2f hPa", pressure / 100.0)
 
         return r["main_fired"]
 

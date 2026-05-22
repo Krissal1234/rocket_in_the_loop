@@ -5,7 +5,7 @@ from typing import Optional
 
 class CommandId(IntEnum):
     DROGUE_FIRE  = 0x01
-    MAIN_FIRE    = 0x02
+    MAIN_FIRE = 0x02
     AIRBRAKE_SET = 0x03
 
 # parachute deployments - 1 byte
@@ -18,7 +18,7 @@ _AIRBRAKE_SIZE   = struct.calcsize(_AIRBRAKE_FORMAT)
 
 @dataclass
 class ActuationCommand:
-    cmd_id:           CommandId
+    cmd_id: CommandId
     deployment_level: Optional[float] = 0.0  # only for AIRBRAKE_SET
 
     @classmethod

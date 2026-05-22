@@ -100,14 +100,7 @@ def _add_sensors(rocket):
 
 def _add_controllers(rocket, ctrl, enable_sil):
     log.info("adding controllers...")
-    # if enable_sil:
-    #     rocket.add_air_brakes(
-    #         drag_coefficient_curve=[[0, 0, 0.0], [0, 0, 0.0], [0, 0, 0.0], [0, 0, 0.0]],
-    #         controller_function=ctrl.sensor_controller,
-    #         sampling_rate=10,
-    #         name="SensorTransmitter",
-    #         controller_name="SensorTransmitterController",
-    #     )
+
     rocket.add_air_brakes(
         drag_coefficient_curve=f"{_ROCKETPY_DATA}/air_brakes_cd.csv",
         controller_function=ctrl.airbrake_controller,
