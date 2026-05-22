@@ -30,7 +30,7 @@ from scipy import stats
 import matplotlib.pyplot as plt
 
 
-LOGS_DIR_DEFAULT = Path(__file__).parent / "../logs"
+LOGS_DIR_DEFAULT = Path(__file__).parent / "../logs/Cameos"
 OUT_DIR_DEFAULT  = Path(__file__).parent / "../results"
 
 RE_APOGEE    = re.compile(r"APOGEE\s+([\d.]+)\s+([\d.]+)")
@@ -40,7 +40,7 @@ RE_DEP       = re.compile(r"DEP\s+([\d.]+)\s+([\d.]+)")
 RE_STALENESS = re.compile(r"STALENESS\s+([\d.]+)\s+([\d.]+)")
 RE_WALL_TIME = re.compile(r"WALL_TIME\s+([\d.]+)")
 
-T_GRID = np.linspace(3.3, 8.0, 500)
+T_GRID = np.linspace(3.3, 20.2, 500)
 
 ARCH_COLORS = {
     "nonsil":         "#2196F3",   # blue

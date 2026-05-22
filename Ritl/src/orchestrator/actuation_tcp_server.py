@@ -24,9 +24,13 @@ class ActuationTcpServer:
         conn, addr = self._server_sock.accept()  # blocks until FSW connects
         log.info(f"FSW connected from {addr}")
 
-        threading.Thread(target=self._handle_connection, # starting a background thread for listener
-                         args=(conn,), daemon=True,
-                         name="actuation-handler").start()
+        # This will now safely find self._handle_connection
+        threading.Thread(
+            target=self._handle_connection,
+            args=(conn,),
+            daemon=True,
+            name="actuation-handler"
+        ).start()
 
     def _handle_connection(self, conn: socket.socket) -> None:
         with conn:
@@ -41,13 +45,11 @@ class ActuationTcpServer:
                     cmd = ActuationCommand.from_bytes(raw)
                     self._flag_store.actuate(cmd)
 
-
                 except socket.timeout:
                     continue
                 except Exception as e:
                     log.error(f"Connection error: {e}")
                     return
-
 
     def close(self) -> None:
         if self._server_sock:

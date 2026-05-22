@@ -12,6 +12,7 @@ log = logging.getLogger("ritl.orchestrator")
 ROCKETPY_ADDRESS = "tcp://127.0.0.1:5560"
 
 FSW_HOST         = "host.docker.internal"
+# FSW_HOST = "10.42.0.142"
 ACTUATION_BIND   = "0.0.0.0"
 FSW_TCP_PORT     = 50100
 ACTUATION_PORT   = 50101
@@ -24,6 +25,7 @@ class Orchestrator:
         self.ctx = ctx
         self._ready_event = ready_event
         self._flag_store = FlagStore()
+        print(FSW_HOST)
         self._fsw = FswTcpClient(FSW_HOST, FSW_TCP_PORT)
         self._actuation = ActuationTcpServer(
             host = ACTUATION_BIND,

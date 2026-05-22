@@ -1,19 +1,18 @@
+version: '3.8'
+
 services:
   ritl:
     build: .
     container_name: ritl
     volumes:
       - .:/app
-    ports:
-      - "50101:50101"
+    # network_mode: "host" gives the container direct access to 10.42.0.x
+    network_mode: "host"
     extra_hosts:
       - "host.docker.internal:host-gateway"
     environment:
       - PYTHONUNBUFFERED=1
-    networks:
-      - ritl-net
     command: python main.py --mode ${SIM_MODE:-sil}
 
-networks:
-  ritl-net:
-    driver: bridge
+# Notice: 'ports' and 'networks' sections are completely removed.
+# With host networking, ports are mapped automatically to your machine's physical IP.
