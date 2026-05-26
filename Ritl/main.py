@@ -13,7 +13,7 @@ print("STARTUP", flush=True)
 sys.stdout.flush()
 import rockets.cameos as cameos
 import rockets.calisto as calisto
-from config import load_config
+from models.config import load_config
 from orchestrator.orchestrator import Orchestrator
 from controllers.non_sil import NonSilControllers
 from controllers.sil import SilControllers

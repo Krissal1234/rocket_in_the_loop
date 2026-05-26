@@ -5,7 +5,7 @@ from .sensor_tcp_client import FswTcpClient
 from .actuation_tcp_server import ActuationTcpServer
 from models.flag_store import FlagStore
 from models.sensor_data import SensorData
-from config import NetworkConfig
+from models.config import NetworkConfig
 
 log = logging.getLogger("ritl.orchestrator")
 
