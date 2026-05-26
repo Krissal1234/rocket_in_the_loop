@@ -1,34 +1,9 @@
-# RITL Simulation Configuration
-
-# Simulation mode
-#   sil     — flight software controls the rocket via the network bridge (this could be sil or hil, depdning on IPs)
-#   nonsil  — pure RocketPy with the built-in PI controller (no FSW needed)
-mode: sil
-
-# Rocket to simulate: calisto | cameos ....
-rocket: cameos
-
-# Coupling architecture (sil mode only)
-#   lockstep   — simulation blocks after each sensor packet until FSW replies - only for airbrakes
-#   nolockstep — simulation advances freely; FSW runs asynchronously
-arch: nolockstep
-
-
-# Output directory for logs, CSVs, and plots
+arch: rategroup
 log_dir: logs
-
+mode: sil
 network:
-  # Host running the FSW binary
-  #   Docker:   host.docker.internal
-  #   HIL (RPi): set to the board IP, e.g. 10.42.0.142
-  fsw_host: 10.42.0.142
-  # fsw_host: host.docker.internal
-
-  # TCP port RITL sends sensor data to FSW (uplink)
-  fsw_sensor_port: 50100
-
-  # TCP port RITL receives actuation commands from FSW (downlink)
   fsw_actuation_port: 50101
-
-  # ZMQ address — SilControllers talks to the Orchestrator here
+  fsw_host: 10.42.0.142
+  fsw_sensor_port: 50100
   zmq_address: tcp://127.0.0.1:5560
+rocket: cameos

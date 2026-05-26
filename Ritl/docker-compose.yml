@@ -6,7 +6,5 @@ services:
     volumes:
       - .:/app
     network_mode: "host"
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
     environment:
       - PYTHONUNBUFFERED=1

@@ -8,6 +8,9 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
+import sys
+print("STARTUP", flush=True)
+sys.stdout.flush()
 import rockets.cameos as cameos
 import rockets.calisto as calisto
 from config import load_config
@@ -22,11 +25,14 @@ ROCKETS = {
 
 def main():
     cfg = load_config("config/config.yaml")
+    print("CONFIG LOADED", flush=True)
+    # cfg = load_config("config/config.yaml")
 
     base = os.path.join(cfg.log_dir, f"{cfg.mode}_{cfg.arch or 'default'}_{cfg.rocket}")
     os.makedirs(cfg.log_dir, exist_ok=True)
 
     logging.basicConfig(
+        filemode='w',
         filename=f"{base}.log",
         level=logging.INFO,
         format="%(asctime)s [%(name)s] %(message)s",
@@ -42,6 +48,7 @@ def main():
         orch  = Orchestrator(ctx, cfg.network, lockstep=(cfg.arch == "lockstep"), ready_event=ready)
         ctrl  = SilControllers(ctx, cfg.network.zmq_address)
         threading.Thread(target=orch.run, name="orchestrator", daemon=True).start()
+        print("WAITING FOR FPRIME", flush=True)
         ready.wait()
         ctrl.connect()
     else:
