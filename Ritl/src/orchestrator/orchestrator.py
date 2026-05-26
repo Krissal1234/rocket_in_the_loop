@@ -6,15 +6,12 @@ from .actuation_tcp_server import ActuationTcpServer
 from models.flag_store import FlagStore
 from models.sensor_data import SensorData
 from models.config import NetworkConfig
+from .fault_injector import FaultInjector, no_faults
 
 log = logging.getLogger("ritl.orchestrator")
 
-parachute_poll_count = 0
-sensor_poll_count = 0
-
-
 class Orchestrator:
-    def __init__(self, ctx, network: NetworkConfig, lockstep: bool = True, ready_event: threading.Event = None):
+    def __init__(self, ctx, network: NetworkConfig, lockstep: bool = True, ready_event: threading.Event = None, fault_injector = None):
         self.ctx = ctx
         self._lockstep = lockstep
         self._ready_event = ready_event
@@ -26,6 +23,7 @@ class Orchestrator:
             port=network.fsw_actuation_port,
             flag_store=self._flag_store,
         )
+        self._fault_injector = fault_injector or no_faults()
 
     def run(self):
         global parachute_poll_count, sensor_poll_count
@@ -46,7 +44,14 @@ class Orchestrator:
 
                 if msg_type == "SENSOR":
                     sensor = SensorData.from_dict(msg)
-                    self._fsw.send_sensor(sensor)
+                    sim_t = sensor.t
+
+                    sensor = self._fault_injector.process(sensor)
+
+                    if sensor is not None:
+                        self._fsw.send_sensor(sensor)
+                    else:
+                        log.debug("FAULT packet dropped at t=%.3f", sim_t)
 
                     # if we are in lockstep we must wait for a response for airbrake control
                     if self._lockstep:
@@ -55,20 +60,20 @@ class Orchestrator:
                         dep_level = self._flag_store.snapshot()["airbrake_dep_level"]
 
                     rocketpy_socket.send_json({"airbrake_dep_level": dep_level})
-                    sensor_poll_count += 1
 
                 elif msg_type in ("DROGUE_POLL", "MAIN_POLL"):
                     flags = self._flag_store.snapshot()
                     rocketpy_socket.send_json({**flags})
-                    parachute_poll_count += 1
 
                 else:
                     log.warning("Unknown message type: %s", msg_type)
 
             except Exception as e:
-                log.error("Orchestrator error: %s", e)
+                log.error("Orchestrator error: %s", e,exc_info=True)
+                break
 
     def close(self):
         log.info("sensor_poll_count=%d  parachute_poll_count=%d", sensor_poll_count, parachute_poll_count)
         self._actuation.close()
         self._fsw.close()
+        self._fault_injector.stats()

@@ -11,6 +11,12 @@ class NetworkConfig:
     fsw_actuation_port: int = 50101
     zmq_address: str = "tcp://127.0.0.1:5560"
 
+@dataclass
+class FaultConfig:
+    enabled: bool = False
+    dropout_rate: float = 0.0
+
+
 
 @dataclass
 class RitlConfig:
@@ -20,6 +26,8 @@ class RitlConfig:
     run_id: Optional[str] = None
     log_dir: str = "logs"
     network: NetworkConfig = field(default_factory=NetworkConfig)
+    fault: FaultConfig = field(default_factory=FaultConfig)
+
 
     @property
     def is_sil(self) -> bool:
@@ -34,6 +42,8 @@ def load_config(path: str = "config/config.yaml") -> RitlConfig:
         return RitlConfig()
 
     network_raw = data.pop("network", {}) or {}
+    fault_raw = data.pop("fault_injection", {}) or {}
+
     return RitlConfig(
         mode=data.get("mode", "nonsil"),
         rocket=data.get("rocket", "cameos"),
@@ -41,4 +51,5 @@ def load_config(path: str = "config/config.yaml") -> RitlConfig:
         run_id=data.get("run_id"),
         log_dir=data.get("log_dir", "logs"),
         network=NetworkConfig(**network_raw),
+        fault = FaultConfig(**fault_raw)
     )

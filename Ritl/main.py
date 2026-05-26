@@ -7,16 +7,16 @@ import numpy as np
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+from pathlib import Path
 
-import sys
-print("STARTUP", flush=True)
-sys.stdout.flush()
 import rockets.cameos as cameos
 import rockets.calisto as calisto
 from models.config import load_config
 from orchestrator.orchestrator import Orchestrator
 from controllers.non_sil import NonSilControllers
 from controllers.sil import SilControllers
+from orchestrator.fault_injector import FaultInjector
+
 
 ROCKETS = {
     "calisto": calisto.build,
@@ -26,7 +26,6 @@ ROCKETS = {
 def main():
     cfg = load_config("config/config.yaml")
     print("CONFIG LOADED", flush=True)
-    # cfg = load_config("config/config.yaml")
 
     base = os.path.join(cfg.log_dir, f"{cfg.mode}_{cfg.arch or 'default'}_{cfg.rocket}")
     os.makedirs(cfg.log_dir, exist_ok=True)
@@ -43,9 +42,13 @@ def main():
 
     ctx = zmq.Context.instance()
 
+    # fault injection
+    fault_injector = FaultInjector(dropout_rate=cfg.fault.dropout_rate) if cfg.fault.enabled else None
+
+
     if cfg.is_sil:
         ready = threading.Event()
-        orch  = Orchestrator(ctx, cfg.network, lockstep=(cfg.arch == "lockstep"), ready_event=ready)
+        orch  = Orchestrator(ctx, cfg.network, lockstep=(cfg.arch == "lockstep"), ready_event=ready, fault_injector = fault_injector)
         ctrl  = SilControllers(ctx, cfg.network.zmq_address)
         threading.Thread(target=orch.run, name="orchestrator", daemon=True).start()
         print("WAITING FOR FPRIME", flush=True)

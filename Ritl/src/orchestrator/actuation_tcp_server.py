@@ -7,7 +7,6 @@ log = logging.getLogger("ritl.actuation_tcp_server")
 
 class ActuationTcpServer:
     """TCP Server that waits on incoming actuation flags from FSW."""
-
     def __init__(self, host: str, port: int, flag_store):
         self._host = host
         self._port = port
