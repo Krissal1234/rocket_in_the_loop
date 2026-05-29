@@ -2,7 +2,7 @@
 RITL Experiment Analysis
 ========================
 Analyses results from:
-  - ritl_experiment           (nonsil, sil/hil lockstep/nolockstep)
+  - ritl_experiment           (nonsil, sil/hil lockstep/snapshot)
   - ritl_rategroup_Xhz_experiment  (rategroup frequency sweep: 1,5,10,25,50 Hz)
 
 Usage:
@@ -27,20 +27,20 @@ RE_WALL_TIME = re.compile(r"WALL_TIME\s+([\d.]+)")
 RE_DEP       = re.compile(r"DEP\s+([\d.]+)\s+([\d.]+)")
 
 COLORS = {
-    "nonsil":          "#2196F3",
-    "sil_lockstep":    "#F44336",
-    "sil_nolockstep":  "#FF9800",
-    "hil_lockstep":    "#9C27B0",
-    "hil_nolockstep":  "#4CAF50",
+    "nonsil":        "#2196F3",
+    "sil_lockstep":  "#F44336",
+    "sil_snapshot":  "#FF9800",
+    "hil_lockstep":  "#9C27B0",
+    "hil_snapshot":  "#4CAF50",
 }
 RATEGROUP_CMAP = plt.cm.plasma
 
 LABELS = {
-    "nonsil":          "Non-SIL",
-    "sil_lockstep":    "SIL Lockstep",
-    "sil_nolockstep":  "SIL No-Lockstep",
-    "hil_lockstep":    "HIL Lockstep",
-    "hil_nolockstep":  "HIL No-Lockstep",
+    "nonsil":        "Non-SIL",
+    "sil_lockstep":  "SIL Lockstep",
+    "sil_snapshot":  "SIL Snapshot",
+    "hil_lockstep":  "HIL Lockstep",
+    "hil_snapshot":  "HIL Snapshot",
 }
 
 plt.rcParams.update({
@@ -195,7 +195,7 @@ def dep_mean_band(runs_dep: list, t_grid: np.ndarray):
 
 # Part 1 — Main experiment plots
 
-MODE_ORDER = ["nonsil", "sil_lockstep", "sil_nolockstep", "hil_lockstep", "hil_nolockstep"]
+MODE_ORDER = ["nonsil", "sil_lockstep", "sil_snapshot", "hil_lockstep", "hil_snapshot"]
 
 
 def plot_apogee_bars(df: pd.DataFrame, baseline_mean: float, out_dir: Path):
@@ -381,8 +381,8 @@ def plot_sil_hil_scatter(df: pd.DataFrame, out_dir: Path):
     fig.suptitle("SIL vs HIL Apogee Agreement per Repetition", fontsize=13, fontweight="bold")
 
     pairs = [
-        ("sil_lockstep",    "hil_lockstep",    "Lockstep",    axes[0]),
-        ("sil_nolockstep",  "hil_nolockstep",  "No-Lockstep", axes[1]),
+        ("sil_lockstep", "hil_lockstep", "Lockstep", axes[0]),
+        ("sil_snapshot",  "hil_snapshot",  "Snapshot",  axes[1]),
     ]
 
     for sil_mode, hil_mode, title, ax in pairs:
@@ -428,8 +428,8 @@ def plot_sil_hil_scatter(df: pd.DataFrame, out_dir: Path):
 def sil_hil_diff_table(df: pd.DataFrame) -> pd.DataFrame:
     rows = []
     for sil_mode, hil_mode, label in [
-        ("sil_lockstep",   "hil_lockstep",   "Lockstep"),
-        ("sil_nolockstep", "hil_nolockstep", "No-Lockstep"),
+        ("sil_lockstep", "hil_lockstep", "Lockstep"),
+        ("sil_snapshot",  "hil_snapshot",  "Snapshot"),
     ]:
         sil_df = df[df["mode"] == sil_mode].copy()
         hil_df = df[df["mode"] == hil_mode].copy()

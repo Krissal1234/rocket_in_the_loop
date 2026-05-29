@@ -34,13 +34,13 @@ FPRIME_VENV    = Path.home() / "Documents/projects/thesis/ritl-fsw/fprime-venv"
 
 # HIL — Raspberry Pi running the FSW binary
 HIL_SSH_USER = "pi"
-HIL_SSH_HOST = HIL_IP   # 10.42.0.142
+HIL_SSH_HOST = HIL_IP
 HIL_FSW_BIN  = "/home/pi/RitlFsw_SilDeployment"   # path on the Pi
 
 RUNNER_DIR  = Path(dirname(realpath(__file__)))
 RITL_DIR    = RUNNER_DIR.parent / "Ritl"        # contains docker-compose.yml
-RITL_CONFIG = RITL_DIR / "config/config.yaml"
-RITL_LOGS   = RITL_DIR / "logs"                 # where main.py writes logs (via volume mount)
+RITL_CONFIG = RITL_DIR / "config.yaml"
+RITL_LOGS   = RITL_DIR / "logs"                 # where main.py writes logs
 
 SIL_HOST = "127.0.0.1"
 
@@ -60,7 +60,7 @@ RE_WALL_TIME = re.compile(r"WALL_TIME\s+([\d.]+)")
 class RunnerConfig:
     ROOT_DIR = RUNNER_DIR
 
-    name:                    str           = "ritl_experiment"
+    name:                    str           = "ritl_experiment_2"
     results_output_path:     Path          = ROOT_DIR / "experiments"
     operation_type:          OperationType = OperationType.AUTO
     time_between_runs_in_ms: int           = 3000
@@ -87,9 +87,9 @@ class RunnerConfig:
         mode_factor = FactorModel("mode", [
             "nonsil",
             "sil_lockstep",
-            "sil_nolockstep",
+            "sil_snapshot",
             "hil_lockstep",
-            "hil_nolockstep",
+            "hil_snapshot",
         ])
         self.run_table_model = RunTableModel(
             factors=[mode_factor],
@@ -99,21 +99,12 @@ class RunnerConfig:
         return self.run_table_model
 
     def _log_path(self, mode: str) -> Path:
-        """Map experiment mode to the log filename main.py will write.
-        main.py builds: <cfg.mode>_<cfg.arch or 'default'>_<cfg.rocket>.log
-        All sil/hil modes write mode=sil in the config, so the log is always sil_<arch>_<rocket>.log
-        nonsil writes nonsil_default_<rocket>.log
-        """
         if mode == "nonsil":
             return RITL_LOGS / f"nonsil_default_{ROCKET}.log"
-        arch = mode.split("_", 1)[1]   # lockstep | nolockstep | sensordriven | rategroup
+        arch = mode.split("_", 1)[1]   # lockstep | snapshot | sensordriven | rategroup
         return RITL_LOGS / f"sil_{arch}_{ROCKET}.log"
 
     def _patch_ritl_config(self, mode: str) -> None:
-        """Patch config.yaml for this run.
-        Note: main.py always uses mode=sil for both sil and hil — the difference is
-        where the FSW binary runs (local GDS vs Pi), not in the simulation config.
-        """
         with open(RITL_CONFIG) as f:
             cfg = yaml.safe_load(f)
 
@@ -121,11 +112,11 @@ class RunnerConfig:
             cfg["mode"] = "nonsil"
             cfg["arch"] = None
         elif mode.startswith("hil"):
-            arch = mode.split("_", 1)[1]   # lockstep | nolockstep |
+            arch = mode.split("_", 1)[1]   # lockstep | snapshot |
             cfg["mode"] = "sil"
             cfg["arch"] = arch
             cfg["network"]["fsw_host"] = HIL_IP
-        else:  # sil_lockstep | sil_nolockstep |
+        else:  # sil_lockstep | sil_snapshot |
             arch = mode.split("_", 1)[1]
             cfg["mode"] = "sil"
             cfg["arch"] = arch
@@ -237,7 +228,6 @@ class RunnerConfig:
             "wall_time_s":   wall_time,
         }
 
-    # ── Lifecycle hooks ───────────────────────────────────────────────────────
     def before_experiment(self) -> None:
         output.console_log(f"Starting RITL experiment | runs={N_RUNS}")
         output.console_log(f"RITL dir:    {RITL_DIR}")
@@ -253,34 +243,11 @@ class RunnerConfig:
             f.unlink()
         time.sleep(2)
 
-    def _prompt_fsw_rebuild(self, mode: str) -> None:
-        """Pause and prompt the user to rebuild the FSW binary before continuing."""
-        arch = mode.split("_", 1)[1]
-        print()
-        print("=" * 60)
-        print(f"  FSW REBUILD REQUIRED")
-        print(f"  Mode: {mode}")
-        print()
-        print(f"  Please:")
-        print(f"    1. git checkout the correct FSW branch")
-        print(f"    2. Set the rate group frequency if needed ({arch})")
-        print(f"    3. Build the binary (fprime-util build)")
-        print(f"    4. For HIL: copy binary to Pi at {HIL_FSW_BIN}")
-        print("=" * 60)
-        input("  Press ENTER when the binary is ready to continue...")
-        print()
 
     def start_run(self, context: RunnerContext) -> None:
         mode = context.execute_run["mode"]
         run_id = context.execute_run["__run_id"]
         output.console_log(f"Starting run: mode={mode}")
-
-        # Prompt for FSW rebuild on the first repetition of rategroup modes only
-        # (sensordriven uses the default binary, no rebuild needed)
-        arch = mode.split("_", 1)[1] if "_" in mode else ""
-        is_first_rep = str(run_id).endswith("repetition_0")
-        if is_first_rep and arch == "rategroup":
-            self._prompt_fsw_rebuild(mode)
 
         self._patch_ritl_config(mode)
         self._current_mode = mode   # used by stop_run to clean up the right FSW
@@ -363,5 +330,4 @@ class RunnerConfig:
         output.console_log("Experiment complete.")
         output.console_log(f"Results saved to: {self.results_output_path / self.name}")
 
-    # ── DO NOT ALTER BELOW ────────────────────────────────────────────────────
     experiment_path: Path = None

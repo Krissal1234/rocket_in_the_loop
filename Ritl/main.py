@@ -1,21 +1,21 @@
-import threading
 import logging
 import time
 import os
-import zmq
 import numpy as np
 import matplotlib
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
-from pathlib import Path
-
 import rockets.cameos as cameos
 import rockets.calisto as calisto
+
 from models.config import load_config
-from orchestrator.orchestrator import Orchestrator
+from models.fault_injector import FaultInjector
+from adapters.fprime_adapter import FPrimeAdapter
+from coupling import COUPLING_STRATEGIES
+from sim_bridge import SimBridge
+from controllers.sil import SilController
 from controllers.non_sil import NonSilControllers
-from controllers.sil import SilControllers
-from orchestrator.fault_injector import FaultInjector
 
 
 ROCKETS = {
@@ -23,36 +23,46 @@ ROCKETS = {
     "cameos":  cameos.build,
 }
 
+
 def main():
-    cfg = load_config("config/config.yaml")
+    cfg = load_config("config.yaml")
     print("CONFIG LOADED", flush=True)
 
     base = os.path.join(cfg.log_dir, f"{cfg.mode}_{cfg.arch or 'default'}_{cfg.rocket}")
     os.makedirs(cfg.log_dir, exist_ok=True)
 
-    logging.basicConfig(
-        filemode='w',
-        filename=f"{base}.log",
-        level=logging.INFO,
-        format="%(asctime)s [%(name)s] %(message)s",
-    )
+    fmt = logging.Formatter("%(asctime)s [%(name)s] %(message)s")
+
+    file_handler = logging.FileHandler(f"{base}.log", mode="w")
+    file_handler.setFormatter(fmt)
+
+    console_handler = logging.StreamHandler()
+    console_handler.setFormatter(fmt)
+
+    root = logging.getLogger()
+    root.setLevel(logging.INFO)
+    root.addHandler(file_handler)
+    root.addHandler(console_handler)
 
     log = logging.getLogger("ritl")
     log.info("mode=%s  arch=%s  rocket=%s", cfg.mode, cfg.arch, cfg.rocket)
 
-    ctx = zmq.Context.instance()
-
-    # fault injection
-    fault_injector = FaultInjector(dropout_rate=cfg.fault.dropout_rate) if cfg.fault.enabled else None
-
+    fault_injector = FaultInjector(cfg.fault.dropout_rate) if cfg.fault.enabled else None
 
     if cfg.is_sil:
-        ready = threading.Event()
-        orch  = Orchestrator(ctx, cfg.network, lockstep=(cfg.arch == "lockstep"), ready_event=ready, fault_injector = fault_injector)
-        ctrl  = SilControllers(ctx, cfg.network.zmq_address)
-        threading.Thread(target=orch.run, name="orchestrator", daemon=True).start()
+        arch = cfg.arch or "snapshot"
+        if arch not in COUPLING_STRATEGIES:
+            raise ValueError(
+                f"Unknown arch '{arch}'. Valid: {list(COUPLING_STRATEGIES)}"
+            )
+        fsw = FPrimeAdapter(cfg.network)
+        coupling = COUPLING_STRATEGIES[arch]()
+        bridge = SimBridge(fsw, coupling, cfg.network.zmq_address, fault_injector)
+
         print("WAITING FOR FPRIME", flush=True)
-        ready.wait()
+        bridge.start_async()  # connects to FSW + binds ZMQ, then returns
+
+        ctrl = SilController(cfg.network.zmq_address)
         ctrl.connect()
     else:
         ctrl = NonSilControllers()
@@ -63,8 +73,10 @@ def main():
 
     drogue_time = main_time = None
     for t, chute in flight.parachute_events:
-        if "drogue" in chute.name.lower() and drogue_time is None: drogue_time = t
-        if "main"   in chute.name.lower() and main_time is None: main_time = t
+        if "drogue" in chute.name.lower() and drogue_time is None:
+            drogue_time = t
+        if "main" in chute.name.lower() and main_time is None:
+            main_time = t
 
     log.info("APOGEE %.4f %.4f", flight.apogee - flight.env.elevation, flight.apogee_time)
     log.info("DROGUE %.4f", drogue_time)

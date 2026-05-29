@@ -42,7 +42,7 @@ HIL_FSW_BIN  = "/home/pi/RitlFsw_SilDeployment"
 
 RUNNER_DIR  = Path(dirname(realpath(__file__)))
 RITL_DIR    = RUNNER_DIR.parent / "Ritl"
-RITL_CONFIG = RITL_DIR / "config/config.yaml"
+RITL_CONFIG = RITL_DIR / "config.yaml"
 RITL_LOGS   = RITL_DIR / "logs"
 
 SIL_HOST = "host.docker.internal"

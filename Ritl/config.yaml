@@ -1,12 +1,12 @@
-rocket: cameos
-arch: lockstep
+arch: snapshot
+fault_injection:
+  dropout_rate: 0
+  enabled: false
 log_dir: logs
 mode: sil
-fault_injection:
-  enabled: false
-  dropout_rate: 0
 network:
   fsw_actuation_port: 50101
   fsw_host: 127.0.0.1
   fsw_sensor_port: 50100
   zmq_address: tcp://127.0.0.1:5560
+rocket: cameos
