@@ -17,6 +17,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 from scipy import stats
+from scipy.optimize import curve_fit
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 
@@ -57,7 +58,10 @@ plt.rcParams.update({
 })
 
 
+# ─────────────────────────────────────────────────────────────────────────────
 # Data loading
+# ─────────────────────────────────────────────────────────────────────────────
+
 def find_main_log(run_dir: Path) -> Path | None:
     """Return the main log file in a run dir, ignoring hil_fsw.log."""
     logs = [f for f in run_dir.glob("*.log") if f.name != "hil_fsw.log"]
@@ -114,7 +118,7 @@ def load_experiment(exp_dir: Path) -> pd.DataFrame:
         return pd.DataFrame()
 
     df = pd.read_csv(csv_path)
-    df = df[df["success"] == True].copy()  # drop failed runs
+    df = df[df["success"] == True].copy()
 
     rows = []
     for _, row in df.iterrows():
@@ -142,7 +146,9 @@ def load_experiment(exp_dir: Path) -> pd.DataFrame:
     return result
 
 
+# ─────────────────────────────────────────────────────────────────────────────
 # Statistics
+# ─────────────────────────────────────────────────────────────────────────────
 
 def summary_table(df: pd.DataFrame, group_col: str, metrics: list[str]) -> pd.DataFrame:
     rows = []
@@ -193,7 +199,9 @@ def dep_mean_band(runs_dep: list, t_grid: np.ndarray):
     return interps.mean(axis=0), interps.std(axis=0, ddof=1)
 
 
+# ─────────────────────────────────────────────────────────────────────────────
 # Part 1 — Main experiment plots
+# ─────────────────────────────────────────────────────────────────────────────
 
 MODE_ORDER = ["nonsil", "sil_lockstep", "sil_snapshot", "hil_lockstep", "hil_snapshot"]
 
@@ -206,10 +214,9 @@ def plot_apogee_bars(df: pd.DataFrame, baseline_mean: float, out_dir: Path):
     colors  = [COLORS.get(m, "#888") for m in modes]
     xlabels = [LABELS.get(m, m) for m in modes]
 
-    bars = ax.bar(xlabels, means, yerr=stds, color=colors, alpha=0.85,
-                  capsize=6, width=0.55, ecolor="black", error_kw={"linewidth": 1.2})
+    ax.bar(xlabels, means, yerr=stds, color=colors, alpha=0.85,
+           capsize=6, width=0.55, ecolor="black", error_kw={"linewidth": 1.2})
 
-    # scatter individual points
     for i, m in enumerate(modes):
         vals = df[df["mode"] == m]["apogee_m"].dropna().values
         ax.scatter([i] * len(vals), vals, color="black", s=12, zorder=5, alpha=0.4)
@@ -217,12 +224,8 @@ def plot_apogee_bars(df: pd.DataFrame, baseline_mean: float, out_dir: Path):
     ax.axhline(baseline_mean, color=COLORS["nonsil"], linestyle="--",
                linewidth=1.5, label=f"Non-SIL baseline ({baseline_mean:.1f} m)")
 
-    # Zoom y-axis to show differences — pad 2m below min and 2m above max
     all_vals = df[df["mode"].isin(modes)]["apogee_m"].dropna()
-    y_min = all_vals.min() - 2
-    y_max = all_vals.max() + 2
-    ax.set_ylim(y_min, y_max)
-
+    ax.set_ylim(all_vals.min() - 2, all_vals.max() + 2)
     ax.set_ylabel("Apogee AGL (m)")
     ax.set_title("Mean Apogee per Coupling Mode (± 1 std dev)")
     ax.legend()
@@ -255,6 +258,57 @@ def plot_wall_time_bars(df: pd.DataFrame, out_dir: Path):
     print(f"  Saved: {path}")
 
 
+def plot_wall_time_violin(df: pd.DataFrame, out_dir: Path):
+    """
+    NEW: Violin + strip plot of wall times per mode.
+    Reveals distribution shape and outliers hidden by bar+errorbar plots.
+    """
+    modes   = [m for m in MODE_ORDER if m in df["mode"].values]
+    xlabels = [LABELS.get(m, m) for m in modes]
+    data    = [df[df["mode"] == m]["wall_time_s"].dropna().values for m in modes]
+    colors  = [COLORS.get(m, "#888") for m in modes]
+
+    fig, ax = plt.subplots(figsize=(10, 5))
+
+    parts = ax.violinplot(data, positions=range(len(modes)),
+                          showmedians=True, showextrema=True, widths=0.6)
+
+    # Colour each violin body
+    for pc, color in zip(parts["bodies"], colors):
+        pc.set_facecolor(color)
+        pc.set_alpha(0.6)
+    for part in ("cmedians", "cmins", "cmaxes", "cbars"):
+        parts[part].set_color("black")
+        parts[part].set_linewidth(1.2)
+
+    # Overlay individual points (jittered)
+    rng = np.random.default_rng(42)
+    for i, (vals, color) in enumerate(zip(data, colors)):
+        jitter = rng.uniform(-0.08, 0.08, size=len(vals))
+        ax.scatter(i + jitter, vals, color=color, s=25, zorder=5,
+                   edgecolors="black", linewidths=0.4, alpha=0.8)
+
+    # Annotate outliers (> mean + 2*std)
+    for i, (vals, m) in enumerate(zip(data, modes)):
+        threshold = vals.mean() + 2 * vals.std()
+        for v in vals:
+            if v > threshold:
+                ax.annotate(f"{v:.1f} s", xy=(i, v),
+                            xytext=(8, 2), textcoords="offset points",
+                            fontsize=8, color="red",
+                            arrowprops=dict(arrowstyle="-", color="red", lw=0.8))
+
+    ax.set_xticks(range(len(modes)))
+    ax.set_xticklabels(xlabels, rotation=15, ha="right")
+    ax.set_ylabel("Wall time (s)")
+    ax.set_title("Wall Time Distribution per Coupling Mode")
+    plt.tight_layout()
+    path = out_dir / "wall_time_violin.png"
+    plt.savefig(path)
+    plt.close()
+    print(f"  Saved: {path}")
+
+
 def plot_apogee_error_bars(df: pd.DataFrame, baseline_mean: float, out_dir: Path):
     fig, ax = plt.subplots(figsize=(10, 5))
     modes = [m for m in MODE_ORDER if m in df["mode"].values and m != "nonsil"]
@@ -262,7 +316,7 @@ def plot_apogee_error_bars(df: pd.DataFrame, baseline_mean: float, out_dir: Path
     colors = [COLORS.get(m, "#888") for m in modes]
     xlabels = [LABELS.get(m, m) for m in modes]
 
-    bars = ax.bar(xlabels, errors, color=colors, alpha=0.85, width=0.55)
+    ax.bar(xlabels, errors, color=colors, alpha=0.85, width=0.55)
     ax.axhline(0, color="black", linewidth=1)
     ax.set_ylabel("Apogee error vs Non-SIL (m)")
     ax.set_title("Apogee Error Relative to Non-SIL Baseline")
@@ -274,8 +328,92 @@ def plot_apogee_error_bars(df: pd.DataFrame, baseline_mean: float, out_dir: Path
     print(f"  Saved: {path}")
 
 
+def plot_parachute_timing(df: pd.DataFrame, out_dir: Path):
+    """
+    NEW: Grouped bar chart of drogue and main deployment times per mode.
+    Highlights the ~0.5 s drogue delay introduced by SIL/HIL coupling.
+    """
+    modes   = [m for m in MODE_ORDER if m in df["mode"].values]
+    xlabels = [LABELS.get(m, m) for m in modes]
+    n       = len(modes)
+    x       = np.arange(n)
+    width   = 0.35
+
+    drogue_means = [df[df["mode"] == m]["drogue_s"].mean() for m in modes]
+    drogue_stds  = [df[df["mode"] == m]["drogue_s"].std(ddof=1) for m in modes]
+    main_means   = [df[df["mode"] == m]["main_s"].mean() for m in modes]
+    main_stds    = [df[df["mode"] == m]["main_s"].std(ddof=1) for m in modes]
+
+    fig, ax = plt.subplots(figsize=(11, 5))
+
+    bars1 = ax.bar(x - width / 2, drogue_means, width, yerr=drogue_stds,
+                   color=[COLORS.get(m, "#888") for m in modes],
+                   alpha=0.85, capsize=5, ecolor="black",
+                   error_kw={"linewidth": 1.1}, label="Drogue deployment (s)")
+
+    bars2 = ax.bar(x + width / 2, main_means, width, yerr=main_stds,
+                   color=[COLORS.get(m, "#888") for m in modes],
+                   alpha=0.40, capsize=5, ecolor="black",
+                   error_kw={"linewidth": 1.1}, label="Main deployment (s)",
+                   hatch="//")
+
+    # Annotate drogue bars with mean value
+    for bar, mean in zip(bars1, drogue_means):
+        ax.text(bar.get_x() + bar.get_width() / 2, mean + 0.05,
+                f"{mean:.2f}", ha="center", va="bottom", fontsize=8)
+
+    # Reference lines for Non-SIL values
+    nonsil_drogue = df[df["mode"] == "nonsil"]["drogue_s"].mean()
+    nonsil_main   = df[df["mode"] == "nonsil"]["main_s"].mean()
+    ax.axhline(nonsil_drogue, color=COLORS["nonsil"], linestyle="--",
+               linewidth=1.2, alpha=0.7, label=f"Non-SIL drogue ({nonsil_drogue:.2f} s)")
+    ax.axhline(nonsil_main, color=COLORS["nonsil"], linestyle=":",
+               linewidth=1.2, alpha=0.7, label=f"Non-SIL main ({nonsil_main:.2f} s)")
+
+    ax.set_xticks(x)
+    ax.set_xticklabels(xlabels, rotation=15, ha="right")
+    ax.set_ylabel("Deployment time (s)")
+    ax.set_title("Parachute Deployment Timing per Coupling Mode (± 1 std dev)")
+    ax.legend(fontsize=9)
+
+    # Zoom y-axis: deployment events span ~24–45 s
+    all_times = drogue_means + main_means
+    ax.set_ylim(min(all_times) - 1.5, max(all_times) + 1.5)
+
+    plt.tight_layout()
+    path = out_dir / "parachute_timing.png"
+    plt.savefig(path)
+    plt.close()
+    print(f"  Saved: {path}")
+
+    # Also save a drogue-only zoomed plot (more readable for that signal)
+    fig, ax = plt.subplots(figsize=(10, 4))
+    for i, (m, mean, std) in enumerate(zip(modes, drogue_means, drogue_stds)):
+        color = COLORS.get(m, "#888")
+        vals  = df[df["mode"] == m]["drogue_s"].dropna().values
+        ax.bar(i, mean, yerr=std, color=color, alpha=0.85, width=0.55,
+               capsize=5, ecolor="black", error_kw={"linewidth": 1.1})
+        ax.scatter([i] * len(vals), vals, color="black", s=18, zorder=5, alpha=0.5)
+        ax.text(i, mean + std + 0.003, f"{mean:.3f} s",
+                ha="center", va="bottom", fontsize=8)
+
+    ax.axhline(nonsil_drogue, color=COLORS["nonsil"], linestyle="--",
+               linewidth=1.4, label=f"Non-SIL baseline ({nonsil_drogue:.3f} s)")
+    ax.set_xticks(range(n))
+    ax.set_xticklabels(xlabels, rotation=15, ha="right")
+    ax.set_ylabel("Drogue deployment time (s)")
+    ax.set_title("Drogue Deployment Time per Coupling Mode (± 1 std dev)")
+    ax.legend()
+    drogue_all = df["drogue_s"].dropna()
+    ax.set_ylim(drogue_all.min() - 0.3, drogue_all.max() + 0.2)
+    plt.tight_layout()
+    path = out_dir / "drogue_timing_zoomed.png"
+    plt.savefig(path)
+    plt.close()
+    print(f"  Saved: {path}")
+
+
 def plot_dep_bands(df: pd.DataFrame, out_dir: Path):
-    # Build common time grid
     all_ts = []
     for deps in df["dep_series"]:
         if deps:
@@ -286,7 +424,6 @@ def plot_dep_bands(df: pd.DataFrame, out_dir: Path):
 
     t_grid = np.linspace(min(all_ts), max(all_ts), 500)
 
-    # Precompute per-mode mean/std
     mode_curves = {}
     for mode in MODE_ORDER:
         sub = df[df["mode"] == mode]
@@ -302,8 +439,7 @@ def plot_dep_bands(df: pd.DataFrame, out_dir: Path):
     fig, ax = plt.subplots(figsize=(12, 5))
     for mode, (mean, std) in mode_curves.items():
         color = COLORS.get(mode, "#888")
-        label = LABELS.get(mode, mode)
-        ax.plot(t_grid, mean, color=color, linewidth=2, label=label)
+        ax.plot(t_grid, mean, color=color, linewidth=2, label=LABELS.get(mode, mode))
         ax.fill_between(t_grid, mean - std, mean + std, color=color, alpha=0.15)
 
     ax.set_xlabel("Simulation time (s)")
@@ -312,10 +448,9 @@ def plot_dep_bands(df: pd.DataFrame, out_dir: Path):
     ax.set_title("Airbrake Deployment Level — Mean ± 1 Std Dev per Mode")
     ax.legend()
     plt.tight_layout()
-    path = out_dir / "dep_bands.png"
-    plt.savefig(path)
+    plt.savefig(out_dir / "dep_bands.png")
     plt.close()
-    print(f"  Saved: {path}")
+    print(f"  Saved: {out_dir / 'dep_bands.png'}")
 
     # Plot 2: full + zoomed side by side
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 5))
@@ -334,7 +469,6 @@ def plot_dep_bands(df: pd.DataFrame, out_dir: Path):
     ax1.set_title("Full flight")
     ax1.legend(fontsize=9)
 
-    # Zoom into where modes diverge (t=6 to t=15)
     ax2.set_xlim(6, 15)
     ax2.set_ylim(-0.02, 0.25)
     ax2.set_xlabel("Simulation time (s)")
@@ -343,10 +477,9 @@ def plot_dep_bands(df: pd.DataFrame, out_dir: Path):
     ax2.legend(fontsize=9)
 
     plt.tight_layout()
-    path = out_dir / "dep_bands_zoomed.png"
-    plt.savefig(path)
+    plt.savefig(out_dir / "dep_bands_zoomed.png")
     plt.close()
-    print(f"  Saved: {path}")
+    print(f"  Saved: {out_dir / 'dep_bands_zoomed.png'}")
 
     # Plot 3: difference from nonsil baseline
     if "nonsil" not in mode_curves:
@@ -360,8 +493,7 @@ def plot_dep_bands(df: pd.DataFrame, out_dir: Path):
             continue
         diff = mean - baseline_dep
         color = COLORS.get(mode, "#888")
-        label = LABELS.get(mode, mode)
-        ax.plot(t_grid, diff, color=color, linewidth=2, label=label)
+        ax.plot(t_grid, diff, color=color, linewidth=2, label=LABELS.get(mode, mode))
         ax.fill_between(t_grid, diff - std, diff + std, color=color, alpha=0.12)
 
     ax.axhline(0, color="black", linewidth=1, linestyle="--", alpha=0.5)
@@ -370,10 +502,9 @@ def plot_dep_bands(df: pd.DataFrame, out_dir: Path):
     ax.set_title("Airbrake Deployment Difference from Non-SIL Baseline")
     ax.legend()
     plt.tight_layout()
-    path = out_dir / "dep_diff_from_nonsil.png"
-    plt.savefig(path)
+    plt.savefig(out_dir / "dep_diff_from_nonsil.png")
     plt.close()
-    print(f"  Saved: {path}")
+    print(f"  Saved: {out_dir / 'dep_diff_from_nonsil.png'}")
 
 
 def plot_sil_hil_scatter(df: pd.DataFrame, out_dir: Path):
@@ -389,7 +520,6 @@ def plot_sil_hil_scatter(df: pd.DataFrame, out_dir: Path):
         sil_df = df[df["mode"] == sil_mode].copy()
         hil_df = df[df["mode"] == hil_mode].copy()
 
-        # Match by repetition number
         sil_df["rep"] = sil_df["__run_id"].str.extract(r"repetition_(\d+)").astype(int)
         hil_df["rep"] = hil_df["__run_id"].str.extract(r"repetition_(\d+)").astype(int)
         merged = pd.merge(sil_df[["rep", "apogee_m"]], hil_df[["rep", "apogee_m"]],
@@ -402,7 +532,6 @@ def plot_sil_hil_scatter(df: pd.DataFrame, out_dir: Path):
         ax.scatter(merged["apogee_m_sil"], merged["apogee_m_hil"],
                    color=COLORS.get(sil_mode, "#888"), s=60, zorder=5)
 
-        # Identity line
         all_vals = pd.concat([merged["apogee_m_sil"], merged["apogee_m_hil"]])
         lim = [all_vals.min() - 2, all_vals.max() + 2]
         ax.plot(lim, lim, "k--", linewidth=1, alpha=0.5, label="Identity")
@@ -419,10 +548,9 @@ def plot_sil_hil_scatter(df: pd.DataFrame, out_dir: Path):
                 bbox=dict(boxstyle="round,pad=0.3", facecolor="white", alpha=0.7))
 
     plt.tight_layout()
-    path = out_dir / "sil_hil_scatter.png"
-    plt.savefig(path)
+    plt.savefig(out_dir / "sil_hil_scatter.png")
     plt.close()
-    print(f"  Saved: {path}")
+    print(f"  Saved: {out_dir / 'sil_hil_scatter.png'}")
 
 
 def sil_hil_diff_table(df: pd.DataFrame) -> pd.DataFrame:
@@ -450,11 +578,12 @@ def sil_hil_diff_table(df: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
+# ─────────────────────────────────────────────────────────────────────────────
 # Part 2 — Rategroup frequency sweep
+# ─────────────────────────────────────────────────────────────────────────────
 
 def plot_rategroup_apogee(rg_data: dict, baseline_mean: float, out_dir: Path):
     freqs  = sorted(rg_data.keys())
-    colors = [RATEGROUP_CMAP(i / max(len(freqs) - 1, 1)) for i in range(len(freqs))]
 
     fig, ax = plt.subplots(figsize=(9, 5))
     means, stds = [], []
@@ -476,10 +605,90 @@ def plot_rategroup_apogee(rg_data: dict, baseline_mean: float, out_dir: Path):
     ax.set_xticks(freqs)
     ax.legend()
     plt.tight_layout()
-    path = out_dir / "rategroup_apogee_vs_freq.png"
+    plt.savefig(out_dir / "rategroup_apogee_vs_freq.png")
+    plt.close()
+    print(f"  Saved: {out_dir / 'rategroup_apogee_vs_freq.png'}")
+
+
+def plot_rategroup_apogee_with_fit(rg_data: dict, baseline_mean: float, out_dir: Path):
+    """
+    NEW: Apogee error vs frequency with power-law curve fit and knee annotation.
+    Answers: "what is the minimum practical rate group frequency?"
+    """
+    freqs = np.array(sorted(rg_data.keys()), dtype=float)
+    means = np.array([rg_data[int(hz)]["apogee_m"].dropna().mean() for hz in freqs])
+    stds  = np.array([rg_data[int(hz)]["apogee_m"].dropna().std(ddof=1) for hz in freqs])
+    errors = means - baseline_mean
+
+    # Fit: error(f) = a / f^b + c  (power law with floor)
+    def power_floor(f, a, b, c):
+        return a / f**b + c
+
+    try:
+        popt, pcov = curve_fit(power_floor, freqs, errors,
+                               p0=[300, 0.7, errors[-1]], maxfev=10000)
+        fit_ok = True
+    except RuntimeError:
+        fit_ok = False
+
+    fig, axes = plt.subplots(1, 2, figsize=(14, 5))
+    fig.suptitle("Rate Group Frequency vs Apogee Error (relative to Non-SIL baseline)",
+                 fontweight="bold")
+
+    for ax, use_log in zip(axes, [False, True]):
+        ax.errorbar(freqs, errors, yerr=stds, fmt="o", color="#E91E63",
+                    capsize=6, markersize=8, zorder=5, label="Measured error")
+
+        if fit_ok:
+            f_fine = np.linspace(0.8, 60, 500) if not use_log else np.logspace(
+                np.log10(0.8), np.log10(60), 500)
+            ax.plot(f_fine, power_floor(f_fine, *popt), color="#FF6F00",
+                    linewidth=2, linestyle="--",
+                    label=f"Fit: {popt[0]:.0f}/f^{popt[1]:.2f} + {popt[2]:.1f}")
+
+            # Knee: where error crosses 10 m and 5 m above baseline floor
+            f_test = np.linspace(0.5, 100, 50000)
+            pred   = power_floor(f_test, *popt)
+            for thresh, ls, col in [(10, ":", "#1976D2"), (5, "-.", "#388E3C")]:
+                idx = np.argmax(pred <= thresh)
+                if pred[idx] <= thresh:
+                    knee_f = f_test[idx]
+                    ax.axvline(knee_f, color=col, linestyle=ls, linewidth=1.4,
+                               label=f"<{thresh} m error at {knee_f:.0f} Hz")
+                    ax.axhline(thresh, color=col, linestyle=ls, linewidth=0.8, alpha=0.5)
+
+        ax.axhline(0, color="black", linewidth=1, linestyle="--", alpha=0.4,
+                   label="Baseline floor (0 m)")
+        ax.set_xlabel("Rate group frequency (Hz)")
+        ax.set_ylabel("Apogee error vs Non-SIL (m)")
+
+        if use_log:
+            ax.set_xscale("log")
+            ax.xaxis.set_major_formatter(ticker.ScalarFormatter())
+            ax.set_xticks(list(freqs) + [60])
+            ax.set_title("Log-scale frequency axis")
+        else:
+            ax.set_title("Linear frequency axis")
+
+        ax.legend(fontsize=9)
+        ax.set_ylim(-5, errors.max() + 20)
+
+    plt.tight_layout()
+    path = out_dir / "rategroup_apogee_error_fit.png"
     plt.savefig(path)
     plt.close()
     print(f"  Saved: {path}")
+
+    # Export fit parameters
+    if fit_ok:
+        fit_path = out_dir / "rategroup_apogee_fit_params.csv"
+        pd.DataFrame([{
+            "a": round(popt[0], 3),
+            "b": round(popt[1], 4),
+            "c": round(popt[2], 3),
+            "model": "error = a / f^b + c",
+        }]).to_csv(fit_path, index=False)
+        print(f"  Saved: {fit_path}")
 
 
 def plot_rategroup_wall_time(rg_data: dict, out_dir: Path):
@@ -500,7 +709,55 @@ def plot_rategroup_wall_time(rg_data: dict, out_dir: Path):
     ax.xaxis.set_major_formatter(ticker.ScalarFormatter())
     ax.set_xticks(freqs)
     plt.tight_layout()
-    path = out_dir / "rategroup_walltime_vs_freq.png"
+    plt.savefig(out_dir / "rategroup_walltime_vs_freq.png")
+    plt.close()
+    print(f"  Saved: {out_dir / 'rategroup_walltime_vs_freq.png'}")
+
+
+def plot_rategroup_wall_time_violin(rg_data: dict, out_dir: Path):
+    """
+    NEW: Violin plot of wall time per rate group frequency.
+    Exposes the large outlier at 5 Hz hidden by the error-bar plot.
+    """
+    freqs  = sorted(rg_data.keys())
+    data   = [rg_data[hz]["wall_time_s"].dropna().values for hz in freqs]
+    colors = [plt.cm.plasma(i / max(len(freqs) - 1, 1)) for i in range(len(freqs))]
+
+    fig, ax = plt.subplots(figsize=(10, 5))
+
+    parts = ax.violinplot(data, positions=range(len(freqs)),
+                          showmedians=True, showextrema=True, widths=0.6)
+
+    for pc, color in zip(parts["bodies"], colors):
+        pc.set_facecolor(color)
+        pc.set_alpha(0.6)
+    for part in ("cmedians", "cmins", "cmaxes", "cbars"):
+        parts[part].set_color("black")
+        parts[part].set_linewidth(1.2)
+
+    rng = np.random.default_rng(42)
+    for i, (vals, color) in enumerate(zip(data, colors)):
+        jitter = rng.uniform(-0.08, 0.08, size=len(vals))
+        ax.scatter(i + jitter, vals, color=color, s=25, zorder=5,
+                   edgecolors="black", linewidths=0.4, alpha=0.85)
+
+    # Annotate outliers (> mean + 2*std)
+    for i, (vals, hz) in enumerate(zip(data, freqs)):
+        threshold = vals.mean() + 2 * vals.std()
+        for v in vals:
+            if v > threshold:
+                ax.annotate(f"{v:.1f} s\n(outlier)", xy=(i, v),
+                            xytext=(12, 0), textcoords="offset points",
+                            fontsize=8, color="red", va="center",
+                            arrowprops=dict(arrowstyle="->", color="red", lw=0.8))
+
+    ax.set_xticks(range(len(freqs)))
+    ax.set_xticklabels([f"{hz} Hz" for hz in freqs])
+    ax.set_ylabel("Wall time (s)")
+    ax.set_title("Wall Time Distribution per Rate Group Frequency\n"
+                 "(outliers annotated; data points jittered for visibility)")
+    plt.tight_layout()
+    path = out_dir / "rategroup_walltime_violin.png"
     plt.savefig(path)
     plt.close()
     print(f"  Saved: {path}")
@@ -520,7 +777,6 @@ def plot_rategroup_dep_bands(rg_data: dict, out_dir: Path):
     freqs  = sorted(rg_data.keys())
     colors = [RATEGROUP_CMAP(i / max(len(freqs) - 1, 1)) for i in range(len(freqs))]
 
-    # full plot
     fig, ax = plt.subplots(figsize=(12, 5))
     for hz, color in zip(freqs, colors):
         deps = [r for r in rg_data[hz]["dep_series"] if r]
@@ -536,10 +792,9 @@ def plot_rategroup_dep_bands(rg_data: dict, out_dir: Path):
     ax.set_title("Airbrake Deployment — Mean ± 1 Std Dev per Rate Group Frequency")
     ax.legend(title="Frequency")
     plt.tight_layout()
-    path = out_dir / "rategroup_dep_bands.png"
-    plt.savefig(path)
+    plt.savefig(out_dir / "rategroup_dep_bands.png")
     plt.close()
-    print(f"  Saved: {path}")
+    print(f"  Saved: {out_dir / 'rategroup_dep_bands.png'}")
 
     fig, ax = plt.subplots(figsize=(12, 5))
     for hz, color in zip(freqs, colors):
@@ -557,10 +812,9 @@ def plot_rategroup_dep_bands(rg_data: dict, out_dir: Path):
     ax.set_title("Airbrake Deployment — Zoomed to Active Window (t = 3–22 s)")
     ax.legend(title="Frequency")
     plt.tight_layout()
-    path = out_dir / "rategroup_dep_bands_zoomed.png"
-    plt.savefig(path)
+    plt.savefig(out_dir / "rategroup_dep_bands_zoomed.png")
     plt.close()
-    print(f"  Saved: {path}")
+    print(f"  Saved: {out_dir / 'rategroup_dep_bands_zoomed.png'}")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -609,24 +863,21 @@ def main():
     metrics = ["apogee_m", "wall_time_s", "drogue_s", "main_s"]
     stats_df = summary_table(main_df, "mode", metrics)
     print(stats_df.to_string(index=False))
-    stats_path = args.out / "summary_stats.csv"
-    stats_df.to_csv(stats_path, index=False)
-    print(f"\n  Saved: {stats_path}")
+    stats_df.to_csv(args.out / "summary_stats.csv", index=False)
+    print(f"\n  Saved: {args.out / 'summary_stats.csv'}")
 
     # ── T-tests ───────────────────────────────────────────────────────────────
     print("\n── Welch T-Tests vs Non-SIL baseline (apogee) ──────────")
     ttest_df = welch_ttest(main_df, "mode", "nonsil", "apogee_m")
     print(ttest_df.to_string(index=False))
-    ttest_path = args.out / "ttest_apogee.csv"
-    ttest_df.to_csv(ttest_path, index=False)
-    print(f"\n  Saved: {ttest_path}")
+    ttest_df.to_csv(args.out / "ttest_apogee.csv", index=False)
+    print(f"\n  Saved: {args.out / 'ttest_apogee.csv'}")
 
     print("\n── SIL vs HIL Agreement ─────────────────────────────────")
     diff_df = sil_hil_diff_table(main_df)
     print(diff_df.to_string(index=False))
-    diff_path = args.out / "sil_hil_diff.csv"
-    diff_df.to_csv(diff_path, index=False)
-    print(f"\n  Saved: {diff_path}")
+    diff_df.to_csv(args.out / "sil_hil_diff.csv", index=False)
+    print(f"\n  Saved: {args.out / 'sil_hil_diff.csv'}")
 
     if rg_data:
         print("Rategroup Summary")
@@ -645,21 +896,30 @@ def main():
                 })
         rg_stats_df = pd.DataFrame(rg_rows)
         print(rg_stats_df.to_string(index=False))
-        rg_stats_path = args.out / "rategroup_stats.csv"
-        rg_stats_df.to_csv(rg_stats_path, index=False)
-        print(f"\n  Saved: {rg_stats_path}")
+        rg_stats_df.to_csv(args.out / "rategroup_stats.csv", index=False)
+        print(f"\n  Saved: {args.out / 'rategroup_stats.csv'}")
 
-    print("Generating plots")
+    # ── Plots ─────────────────────────────────────────────────────────────────
+    print("\n── Generating plots ─────────────────────────────────────")
+
+    # Original plots
     plot_apogee_bars(main_df, baseline_mean, args.out)
     plot_wall_time_bars(main_df, args.out)
     plot_apogee_error_bars(main_df, baseline_mean, args.out)
     plot_dep_bands(main_df, args.out)
     plot_sil_hil_scatter(main_df, args.out)
 
+    # NEW plots
+    plot_wall_time_violin(main_df, args.out)
+    plot_parachute_timing(main_df, args.out)
+
     if rg_data:
         plot_rategroup_apogee(rg_data, baseline_mean, args.out)
         plot_rategroup_wall_time(rg_data, args.out)
         plot_rategroup_dep_bands(rg_data, args.out)
+        # NEW plots
+        plot_rategroup_apogee_with_fit(rg_data, baseline_mean, args.out)
+        plot_rategroup_wall_time_violin(rg_data, args.out)
 
     print(f"\n── Done. All results saved to: {args.out.resolve()} ──\n")
 
