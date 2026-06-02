@@ -47,7 +47,7 @@ def main():
     log = logging.getLogger("ritl")
     log.info("mode=%s  arch=%s  rocket=%s", cfg.mode, cfg.arch, cfg.rocket)
 
-    fault_injector = FaultInjector(cfg.fault.dropout_rate) if cfg.fault.enabled else None
+    fault_injector = FaultInjector(cfg.fault.freeze_baro, cfg.fault.dropout_rate) if cfg.fault.enabled else None
 
     if cfg.is_sil:
         arch = cfg.arch or "snapshot"

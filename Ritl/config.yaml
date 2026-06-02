@@ -1,7 +1,8 @@
 arch: snapshot
 fault_injection:
-  dropout_rate: 0
   enabled: false
+  freeze_baro: false
+  dropout_rate: 0
 log_dir: logs
 mode: sil
 network:

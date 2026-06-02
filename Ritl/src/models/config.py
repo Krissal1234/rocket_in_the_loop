@@ -15,6 +15,7 @@ class NetworkConfig:
 class FaultConfig:
     enabled: bool = False
     dropout_rate: float = 0.0
+    freeze_baro: bool = False
 
 
 
