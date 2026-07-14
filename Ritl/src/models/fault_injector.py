@@ -12,9 +12,11 @@ class FaultInjector:
     Fault injection on incoming sensor data from simulator.
     """
 
-    def __init__(self, freeze_baro: bool = False, dropout_rate: float = 0.0):
+    def __init__(self, freeze_baro: bool = False, freeze_baro_at: float = 0.0, dropout_rate: float = 0.0):
+        log.info("FaultInjector init: freeze_baro=%s freeze_baro_at=%s", freeze_baro, freeze_baro_at)
         self.dropout_rate = dropout_rate
         self.freeze_baro = freeze_baro
+        self.freeze_baro_at = freeze_baro_at
         self._frozen_value = None
         self._dropped = 0
         self._total = 0
@@ -26,11 +28,12 @@ class FaultInjector:
             return None
 
         if self.freeze_baro:
-            if self._frozen_value is None:
-                self._frozen_value = sensor.baro
-                print("TEST")
-                log.warning("Freezing Baro at %.2f Pa", self._frozen_value)
-            sensor.baro = self._frozen_value
+            if self._frozen_value is None and sensor.t is not None and sensor.t >= self.freeze_baro_at:
+                if sensor.baro is not None and isinstance(sensor.baro, float):
+                    self._frozen_value = sensor.baro
+                    log.warning("Baro frozen at t=%.2fs, value=%.2f Pa", sensor.t, self._frozen_value)
+            if self._frozen_value is not None:
+                sensor.baro = self._frozen_value
 
         return sensor
 

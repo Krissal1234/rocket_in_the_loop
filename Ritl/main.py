@@ -47,7 +47,7 @@ def main():
     log = logging.getLogger("ritl")
     log.info("mode=%s  arch=%s  rocket=%s", cfg.mode, cfg.arch, cfg.rocket)
 
-    fault_injector = FaultInjector(cfg.fault.freeze_baro, cfg.fault.dropout_rate) if cfg.fault.enabled else None
+    fault_injector = FaultInjector(cfg.fault.freeze_baro, cfg.fault.freeze_baro_at, cfg.fault.dropout_rate) if cfg.fault.enabled else None
 
     if cfg.is_sil:
         arch = cfg.arch or "snapshot"
@@ -79,8 +79,8 @@ def main():
             main_time = t
 
     log.info("APOGEE %.4f %.4f", flight.apogee - flight.env.elevation, flight.apogee_time)
-    log.info("DROGUE %.4f", drogue_time)
-    log.info("MAIN %.4f", main_time)
+    log.info("DROGUE %.4f", drogue_time if drogue_time is not None else -1.0)
+    log.info("MAIN %.4f",   main_time  if main_time  is not None else -1.0)
     log.info("WALL_TIME %.4f", time.time() - sim_start)
 
     alt = np.array(flight.z.source)
@@ -90,6 +90,7 @@ def main():
         np.column_stack([alt[:, 0], alt[:, 1] - flight.env.elevation, vz[:, 1]]),
         delimiter=",", header="t,altitude_agl_m,vz_ms", comments="",
     )
+    # flight.all_info()
 
     flight.plots.linear_kinematics_data()
     plt.savefig(f"{base}_kinematics.png", dpi=150, bbox_inches="tight")

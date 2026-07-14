@@ -16,6 +16,8 @@ class SilController:
         self._address = zmq_address
         self._socket: zmq.Socket | None = None
         self._last_time: float | None = None
+        self._ground_alt: float | None = None  # set on first callback
+
 
     def connect(self) -> None:
         ctx = zmq.Context.instance()
@@ -61,6 +63,11 @@ class SilController:
             gyro_y  = float(gyro[1]),
             gyro_z  = float(gyro[2]),
         )
+
+        if self._ground_alt is None:
+            self._ground_alt = float(state_vector[2])
+        true_alt = float(state_vector[2]) - self._ground_alt
+        # log.info("TRUE_ALT %.4f %.4f", time, true_alt)
 
         resp = self._send({"type": "SENSOR", **sensor.to_dict()})
         dep_level = float(resp.get("airbrake_dep_level", 0.0))

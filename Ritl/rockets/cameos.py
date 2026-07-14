@@ -122,11 +122,11 @@ def _add_parachutes(rocket, ctrl):
     log.info("adding parachutes...")
     rocket.add_parachute(
         name="drogue", cd_s=1.0, trigger=ctrl.drogue_trigger,
-        sampling_rate=100, lag=1.5, noise=(0, 8.3, 0.5),
+        sampling_rate=10, lag=1.5
     )
     rocket.add_parachute(
         name="main", cd_s=10.0, trigger=ctrl.main_trigger,
-        sampling_rate=100, lag=1.5, noise=(0, 8.3, 0.5),
+        sampling_rate=10, lag=1.5
     )
 
 

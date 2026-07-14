@@ -16,6 +16,7 @@ class FaultConfig:
     enabled: bool = False
     dropout_rate: float = 0.0
     freeze_baro: bool = False
+    freeze_baro_at: float = 0.0
 
 
 

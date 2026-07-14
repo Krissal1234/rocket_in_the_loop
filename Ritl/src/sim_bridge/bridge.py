@@ -79,6 +79,7 @@ class SimBridge:
 
         if msg_type == "SENSOR":
             sensor = SensorData.from_dict(msg)
+
             # Fault injection processed here
             processed = self._fault.process(sensor)
             if processed is not None:
@@ -87,12 +88,15 @@ class SimBridge:
                 log.debug("FAULT dropped at t=%.3f", sensor.t)
                 dep = self._fsw.get_snapshot()["airbrake_dep_level"]
 
+            log.info("BARO %.4f %.4f", sensor.t, sensor.baro)
+            log.info("IMU %.4f %.4f", sensor.t, sensor.accel_z)
+
             elapsed_s = int(sensor.t)
             if elapsed_s > self._last_logged_s:
                 self._last_logged_s = elapsed_s
-                print(
-                    f"SIM t={elapsed_s}s baro={sensor.baro:.1f}Pa accel_z={sensor.accel_z:.3f}m/s2 dep={dep:.4f}"
-                )
+                # print(
+                    # f"SIM t={elapsed_s}s baro={sensor.baro:.1f}Pa accel_z={sensor.accel_z:.3f}m/s2 dep={dep:.4f}"
+                # )
 
             return {"airbrake_dep_level": dep}
 

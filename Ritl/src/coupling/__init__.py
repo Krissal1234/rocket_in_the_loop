@@ -6,4 +6,5 @@ from .snapshot import SnapshotCoupling
 COUPLING_STRATEGIES: dict[str, type[CouplingStrategy]] = {
     "lockstep":     LockstepCoupling,
     "snapshot":     SnapshotCoupling,
+    "rategroup":    SnapshotCoupling,
 }

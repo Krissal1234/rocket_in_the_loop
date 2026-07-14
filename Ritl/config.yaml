@@ -1,13 +1,14 @@
 arch: snapshot
 fault_injection:
+  dropout_rate: 0.0
   enabled: false
-  freeze_baro: false
-  dropout_rate: 0
+  freeze_baro: true
+  freeze_baro_at: 10.0
 log_dir: logs
 mode: sil
 network:
   fsw_actuation_port: 50101
-  fsw_host: 127.0.0.1
+  fsw_host: 10.42.0.142
   fsw_sensor_port: 50100
   zmq_address: tcp://127.0.0.1:5560
 rocket: cameos

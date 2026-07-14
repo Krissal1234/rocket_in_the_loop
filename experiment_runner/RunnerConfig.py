@@ -60,7 +60,7 @@ RE_WALL_TIME = re.compile(r"WALL_TIME\s+([\d.]+)")
 class RunnerConfig:
     ROOT_DIR = RUNNER_DIR
 
-    name:                    str           = "ritl_experiment_2"
+    name:                    str           = "ritl_experiment"
     results_output_path:     Path          = ROOT_DIR / "experiments"
     operation_type:          OperationType = OperationType.AUTO
     time_between_runs_in_ms: int           = 3000
