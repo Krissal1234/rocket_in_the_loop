@@ -10,5 +10,5 @@ class CouplingStrategy(ABC):
     @abstractmethod
     def on_sensor(self, sensor: SensorData, fsw: FswAdapter) -> float:
         """
-            In current implementation : may block (lockstep) or return immediately (snapshot).
+            In current implementation : may block (blocking) or return immediately (non blocking).
         """

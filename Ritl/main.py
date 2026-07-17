@@ -50,7 +50,7 @@ def main():
     fault_injector = FaultInjector(cfg.fault.freeze_baro, cfg.fault.freeze_baro_at, cfg.fault.dropout_rate) if cfg.fault.enabled else None
 
     if cfg.is_sil:
-        arch = cfg.arch or "snapshot"
+        arch = cfg.arch or "blocking"
         if arch not in COUPLING_STRATEGIES:
             raise ValueError(
                 f"Unknown arch '{arch}'. Valid: {list(COUPLING_STRATEGIES)}"

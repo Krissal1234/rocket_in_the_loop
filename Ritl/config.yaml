@@ -1,4 +1,4 @@
-arch: snapshot
+arch: blocking
 fault_injection:
   dropout_rate: 0.0
   enabled: false

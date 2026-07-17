@@ -1,10 +1,9 @@
 from .base import CouplingStrategy
-from .lockstep import LockstepCoupling
-from .snapshot import SnapshotCoupling
+from .blocking import BlockingCoupling
+from .non_blocking import NonBlockingCoupling
 
 # Maps config.arch strings to coupling classes.
 COUPLING_STRATEGIES: dict[str, type[CouplingStrategy]] = {
-    "lockstep":     LockstepCoupling,
-    "snapshot":     SnapshotCoupling,
-    "rategroup":    SnapshotCoupling,
+    "blocking": BlockingCoupling,
+    "non_blocking": NonBlockingCoupling,
 }

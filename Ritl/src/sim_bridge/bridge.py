@@ -40,7 +40,6 @@ class SimBridge:
         self._coupling = coupling
         self._zmq_address = zmq_address
         self._fault = fault_injector or no_faults()
-        self._last_logged_s: int = -1
 
     def start_async(self) -> None:
         """ starts the bridge on a new thread.
@@ -90,13 +89,6 @@ class SimBridge:
 
             log.info("BARO %.4f %.4f", sensor.t, sensor.baro)
             log.info("IMU %.4f %.4f", sensor.t, sensor.accel_z)
-
-            elapsed_s = int(sensor.t)
-            if elapsed_s > self._last_logged_s:
-                self._last_logged_s = elapsed_s
-                # print(
-                    # f"SIM t={elapsed_s}s baro={sensor.baro:.1f}Pa accel_z={sensor.accel_z:.3f}m/s2 dep={dep:.4f}"
-                # )
 
             return {"airbrake_dep_level": dep}
 
