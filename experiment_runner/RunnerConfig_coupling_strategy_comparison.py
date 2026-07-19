@@ -18,15 +18,11 @@ import re
 import yaml
 
 
-# ── Configuration ─────────────────────────────────────────────────────────────
-
-# !! CHANGE THIS before each run !!
-# Must match the rate group frequency compiled into the FSW binary.
-RATEGROUP_HZ = 5
 
 ROCKET = "cameos"
 N_RUNS = 10
-RUN_TIMEOUT = 600
+RUN_TIMEOUT = 600    # seconds
+
 
 HIL_IP           = "10.42.0.142"
 FSW_SENSOR_PORT  = 50100
@@ -36,16 +32,17 @@ FPRIME_BIN     = Path.home() / "Documents/projects/thesis/ritl-fsw/RitlFsw/SilDe
 FPRIME_GDS_DIR = Path.home() / "Documents/projects/thesis/ritl-fsw/RitlFsw/SilDeployment"
 FPRIME_VENV    = Path.home() / "Documents/projects/thesis/ritl-fsw/fprime-venv"
 
+# HIL — Raspberry Pi running the FSW binary
 HIL_SSH_USER = "pi"
 HIL_SSH_HOST = HIL_IP
-HIL_FSW_BIN  = "/home/pi/RitlFsw_SilDeployment"
+HIL_FSW_BIN  = "/home/pi/RitlFsw_SilDeployment"   # path on the Pi
 
 RUNNER_DIR  = Path(dirname(realpath(__file__)))
-RITL_DIR    = RUNNER_DIR.parent / "Ritl"
+RITL_DIR    = RUNNER_DIR.parent / "Ritl"        # contains docker-compose.yml
 RITL_CONFIG = RITL_DIR / "config.yaml"
-RITL_LOGS   = RITL_DIR / "logs"
+RITL_LOGS   = RITL_DIR / "logs"                 # where main.py writes logs
 
-SIL_HOST = "host.docker.internal"
+SIL_HOST = "127.0.0.1"
 
 DOCKER_COMPOSE_RUN = [
     "docker", "compose", "run", "--rm", "--service-ports", "ritl",
@@ -57,12 +54,13 @@ RE_DROGUE    = re.compile(r"DROGUE\s+([\d.]+)")
 RE_MAIN      = re.compile(r"MAIN\s+([\d.]+)")
 RE_WALL_TIME = re.compile(r"WALL_TIME\s+([\d.]+)")
 
+# ─────────────────────────────────────────────────────────────────────────────
 
 
 class RunnerConfig:
     ROOT_DIR = RUNNER_DIR
 
-    name:                    str           = f"ritl_rategroup_{RATEGROUP_HZ}hz_experiment"
+    name:                    str           = "ritl_experiment"
     results_output_path:     Path          = ROOT_DIR / "experiments"
     operation_type:          OperationType = OperationType.AUTO
     time_between_runs_in_ms: int           = 3000
@@ -82,13 +80,16 @@ class RunnerConfig:
         self.run_table_model = None
         self._fprime_proc: Optional[subprocess.Popen] = None
         self._current_mode: str = ""
-        output.console_log(f"RITL Rategroup RunnerConfig loaded | {RATEGROUP_HZ}hz")
+        output.console_log("RITL RunnerConfig loaded")
 
     # ── Run table ─────────────────────────────────────────────────────────────
     def create_run_table_model(self) -> RunTableModel:
         mode_factor = FactorModel("mode", [
-            "hil_rategroup",
-            "sil_rategroup",
+            "nonsil",
+            "sil_lockstep",
+            "sil_snapshot",
+            "hil_lockstep",
+            "hil_snapshot",
         ])
         self.run_table_model = RunTableModel(
             factors=[mode_factor],
@@ -97,25 +98,37 @@ class RunnerConfig:
         )
         return self.run_table_model
 
-    # ── Helpers ───────────────────────────────────────────────────────────────
     def _log_path(self, mode: str) -> Path:
-        arch = mode.split("_", 1)[1]   # rategroup
+        if mode == "nonsil":
+            return RITL_LOGS / f"nonsil_default_{ROCKET}.log"
+        arch = mode.split("_", 1)[1]
         return RITL_LOGS / f"sil_{arch}_{ROCKET}.log"
 
     def _patch_ritl_config(self, mode: str) -> None:
         with open(RITL_CONFIG) as f:
             cfg = yaml.safe_load(f)
 
-        cfg["mode"]    = "sil"
-        cfg["arch"]    = "rategroup"
+        if mode == "nonsil":
+            cfg["mode"] = "nonsil"
+            cfg["arch"] = None
+        elif mode.startswith("hil"):
+            arch = mode.split("_", 1)[1]   # lockstep | snapshot |
+            cfg["mode"] = "sil"
+            cfg["arch"] = arch
+            cfg["network"]["fsw_host"] = HIL_IP
+        else:  # sil_lockstep | sil_snapshot |
+            arch = mode.split("_", 1)[1]
+            cfg["mode"] = "sil"
+            cfg["arch"] = arch
+            cfg["network"]["fsw_host"] = SIL_HOST
+
         cfg["rocket"]  = ROCKET
-        cfg["log_dir"] = "logs"
-        cfg["network"]["fsw_host"] = HIL_IP if mode.startswith("hil") else SIL_HOST
+        cfg["log_dir"] = "logs"   # relative — main.py runs from /app inside container
 
         with open(RITL_CONFIG, "w") as f:
             yaml.dump(cfg, f, default_flow_style=False)
 
-        output.console_log(f"Config patched: arch=rategroup, fsw_host={cfg['network']['fsw_host']}")
+        output.console_log(f"Config patched: mode={cfg['mode']}, arch={cfg.get('arch')}, fsw_host={cfg['network'].get('fsw_host', 'n/a')}")
 
     def _kill_fprime(self) -> None:
         output.console_log("Killing any existing F Prime / GDS processes...")
@@ -215,44 +228,42 @@ class RunnerConfig:
             "wall_time_s":   wall_time,
         }
 
-    # ── Lifecycle hooks ───────────────────────────────────────────────────────
     def before_experiment(self) -> None:
-        output.console_log(f"Starting RITL rategroup experiment | {RATEGROUP_HZ}hz | runs={N_RUNS}")
+        output.console_log(f"Starting RITL experiment | runs={N_RUNS}")
         output.console_log(f"RITL dir:    {RITL_DIR}")
+        output.console_log(f"RITL config: {RITL_CONFIG}")
         output.console_log(f"Logs dir:    {RITL_LOGS}")
         RITL_LOGS.mkdir(parents=True, exist_ok=True)
-        print()
-        print("=" * 60)
-        print(f"  RATEGROUP EXPERIMENT — {RATEGROUP_HZ}hz")
-        print(f"  Ensure the FSW binary is built with rate group = {RATEGROUP_HZ}hz")
-        print(f"  For HIL: binary must be copied to Pi at {HIL_FSW_BIN}")
-        print("=" * 60)
-        input("  Press ENTER to confirm binary is ready and start...")
-        print()
 
     def before_run(self) -> None:
         output.console_log("Preparing for next run...")
         subprocess.run(["docker", "compose", "down"], cwd=RITL_DIR, capture_output=True)
+        # Delete stale logs so the next run starts fresh and we don't parse the wrong run
         for f in RITL_LOGS.glob("*.log"):
             f.unlink()
         time.sleep(2)
 
+
     def start_run(self, context: RunnerContext) -> None:
         mode = context.execute_run["mode"]
-        output.console_log(f"Starting run: mode={mode} | {RATEGROUP_HZ}hz")
+        run_id = context.execute_run["__run_id"]
+        output.console_log(f"Starting run: mode={mode}")
+
         self._patch_ritl_config(mode)
-        self._current_mode = mode
+        self._current_mode = mode   # used by stop_run to clean up the right FSW
         if mode.startswith("hil"):
             self._kill_hil_fsw()
             self._start_hil_fsw(context.run_dir)
-        else:
+        elif mode.startswith("sil"):
             self._kill_fprime()
             self._start_fprime(context.run_dir)
+        # nonsil: no FSW needed
 
     def start_measurement(self, context: RunnerContext) -> None:
         pass
 
     def interact(self, context: RunnerContext) -> None:
+        """Launch the simulation via docker compose run and block until done."""
         output.console_log(f"Launching: {' '.join(DOCKER_COMPOSE_RUN)}")
         try:
             result = subprocess.run(
@@ -271,6 +282,7 @@ class RunnerConfig:
     def stop_run(self, context: RunnerContext) -> None:
         output.console_log("Stopping run...")
         subprocess.run(["docker", "compose", "down"], cwd=RITL_DIR, capture_output=True)
+
         if self._fprime_proc is not None:
             output.console_log("Terminating FSW process...")
             self._fprime_proc.terminate()
@@ -279,7 +291,9 @@ class RunnerConfig:
             except subprocess.TimeoutExpired:
                 self._fprime_proc.kill()
             self._fprime_proc = None
-            if self._current_mode.startswith("hil"):
+            # Clean up whichever FSW was running
+            mode = getattr(self, "_current_mode", "")
+            if mode.startswith("hil"):
                 self._kill_hil_fsw()
             else:
                 self._kill_fprime()
@@ -296,8 +310,9 @@ class RunnerConfig:
             return {"apogee_m": None, "apogee_time_s": None, "drogue_s": None,
                     "main_s": None, "wall_time_s": None, "success": False}
 
-        src_stem  = log_path.stem
-        dest_stem = f"{mode}_{RATEGROUP_HZ}hz_{run_id}"
+        # Copy log + any other outputs (CSV, plots) into the experiment run dir
+        src_stem  = log_path.stem   # e.g. sil_lockstep_cameos
+        dest_stem = f"{mode}_{run_id}"
         for f in RITL_LOGS.iterdir():
             if f.stem == src_stem:
                 shutil.copy(f, context.run_dir / f"{dest_stem}{f.suffix}")
@@ -312,8 +327,7 @@ class RunnerConfig:
         }
 
     def after_experiment(self) -> None:
-        output.console_log("Rategroup experiment complete.")
+        output.console_log("Experiment complete.")
         output.console_log(f"Results saved to: {self.results_output_path / self.name}")
 
-    # ── DO NOT ALTER BELOW ────────────────────────────────────────────────────
     experiment_path: Path = None

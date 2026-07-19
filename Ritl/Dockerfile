@@ -11,4 +11,3 @@ ENV PYTHONPATH=/app/src
 COPY . .
 
 CMD ["python", "main.py"]
- # "--scenario", "config/scenarios/default.yaml"]

@@ -4,6 +4,11 @@
 
 A hardware/software-in-the-loop (HIL/SIL) framework that couples the [RocketPy](https://github.com/RocketPy-Team/RocketPy) 6-DOF flight simulator with real flight software (FSW) running on either a host machine or embedded hardware. The system was developed as part of a Masters thesis to evaluate different coupling architectures and their effect on simulated rocket flight fidelity and real-time performance, using the CAMÕES student rocket as the reference vehicle.
 
+## Branches
+
+- **`main`** — the RITL framework itself (orchestrator, coupling strategies, FSW adapters). No experiment automation.
+- **`msc_thesis_submission`** (this branch) — a snapshot of `main` plus everything used to produce the thesis results: the `experiment_runner/` configs, fault injection, and the analysis scripts/plots.
+
 ---
 
 ## Overview
@@ -34,27 +39,27 @@ The FSW used in this thesis is built on [NASA F Prime](https://github.com/nasa/f
 ┌─────────────────────────────────────────────────────────────┐
 │                        Host machine                         │
 │                                                             │
-│  ┌────────────────┐    ZMQ REQ/REP     ┌─────────────────┐ │
-│  │   RocketPy     │◄──────────────────►│                 │ │
-│  │  Simulator     │  JSON over ZMQ     │   Orchestrator  │ │
-│  │                │  tcp://127.0.0.1   │   (SimBridge)   │ │
-│  │  SilController │  :5560             │                 │ │
-│  └────────────────┘                    └────────┬────────┘ │
+│  ┌────────────────┐    ZMQ REQ/REP     ┌─────────────────┐  │
+│  │   RocketPy     │◄──────────────────►│                 │  │
+│  │   Simulator    │  JSON over ZMQ     │   Orchestrator  │  │
+│  │                │  tcp://127.0.0.1   │   (SimBridge)   │  │
+│  │  SilController │  :5560             │                 │  │
+│  └────────────────┘                    └────────┬────────┘  │
 │                                                 │           │
-│                              TCP (sensor) port  │           │
-│                              TCP (actuation) port│          │
+│                             TCP (sensor) port   │           │
+│                             TCP (actuation) port│           │
 └─────────────────────────────────────────────────┼───────────┘
                                                   │
                         ┌─────────────────────────┼──────────┐
-                        │  SIL: localhost          │          │
-                        │  HIL: Raspberry Pi       │          │
-                        │                          ▼          │
-                        │              ┌──────────────────┐   │
-                        │              │   F Prime FSW    │   │
-                        │              │  (RitlFsw_SIL    │   │
-                        │              │   Deployment)    │   │
-                        │              └──────────────────┘   │
-                        └──────────────────────────────────────┘
+                        │  SIL: localhost         │          │
+                        │  HIL: Raspberry Pi      │          │
+                        │                         ▼          │
+                        │              ┌──────────────────┐  │
+                        │              │   F Prime FSW    │  │
+                        │              │  (RitlFsw_SIL    │  │
+                        │              │   Deployment)    │  │
+                        │              └──────────────────┘  │
+                        └────────────────────────────────────┘
 ```
 
 The **Orchestrator** (`SimBridge`) is the central component. It sits between the simulator and the FSW, translating between two independent binary protocols and enforcing the chosen coupling strategy.
@@ -208,7 +213,7 @@ All parameters for a single run are in `Ritl/config.yaml`:
 
 ```yaml
 mode: sil               # nonsil | sil
-arch: snapshot          # lockstep | snapshot  (sil only)
+arch: snapshot          # lockstep | snapshot | rategroup  (sil only)
 rocket: cameos          # rocket model to simulate
 
 log_dir: logs
@@ -224,7 +229,13 @@ fault_injection:
   freeze_baro: false
   freeze_baro_at: 10.0
   dropout_rate: 0.0
+
+rocket_params:
+  sample_rate: 10.0      # Hz — airbrake controller callback frequency
+  time_step: 0.001       # s — RocketPy ODE integration time-step
 ```
+
+`rategroup` reuses the same (non-blocking) coupling code as `snapshot` — see [Rate Group](#rate-group) below — it's paired with a time-triggered FSW build rather than a different coupling strategy in software.
 
 ---
 
@@ -241,7 +252,7 @@ fault_injection:
 ```bash
 cd Ritl
 # Edit config.yaml: set mode: nonsil
-docker compose run --rm --service-ports ritl python main.py
+docker compose up
 ```
 
 ### SIL
@@ -259,7 +270,7 @@ fprime-gds
 
 # 3. Run the simulation:
 cd Ritl
-docker compose run --rm --service-ports ritl python main.py
+docker compose up
 ```
 
 ### HIL
@@ -276,7 +287,7 @@ ssh pi@10.42.0.142
 
 # 3. Run the simulation from the host:
 cd Ritl
-docker compose run --rm --service-ports ritl python main.py
+docker compose up
 ```
 
 ### Outputs
@@ -294,62 +305,9 @@ Each run writes to `Ritl/logs/`:
 
 ## Experiment Runner
 
-The experiment runner automates multi-run comparative experiments across all modes. It is built on the [experiment-runner](https://github.com/S2-group/experiment-runner) framework.
+*(only on `msc_thesis_submission` — `main` does not include this)*
 
-### Available runner configs
-
-| File | Experiment |
-|---|---|
-| `RunnerConfig.py` | Main experiment — all modes (nonsil, sil lockstep, sil snapshot, hil lockstep, hil snapshot) |
-| `RunnerConfig_rategroup.py` | Rate-group frequency sweep (1, 5, 10, 25, 50 Hz) — change `RATEGROUP_HZ` to match the FSW binary |
-| `RunnerConfig_fault_injection.py` | Fault injection experiment — barometer freeze at 10 s |
-
-### Setup
-
-```bash
-git clone https://github.com/S2-group/experiment-runner
-cd experiment-runner
-pip install -e .
-```
-
-### Running an experiment
-
-```bash
-cd experiment_runner
-
-# Main comparative experiment (nonsil vs sil vs hil, lockstep vs snapshot):
-python -m experiment_runner RunnerConfig.py
-
-# Rate-group frequency sweep:
-# First set RATEGROUP_HZ in RunnerConfig_rategroup.py to match the FSW binary,
-# then run once per frequency:
-python -m experiment_runner RunnerConfig_rategroup.py
-
-# Fault injection experiment:
-python -m experiment_runner RunnerConfig_fault_injection.py
-```
-
-Each experiment creates a timestamped directory under `experiment_runner/experiments/`, e.g.:
-
-```
-experiment_runner/experiments/
-└── ritl_experiment/
-    ├── run_table.csv          # factor assignments and results for all runs
-    ├── run_0_repetition_0/    # per-run directory
-    │   ├── sil_lockstep_<id>.log
-    │   ├── sil_lockstep_<id>.csv
-    │   └── sil_lockstep_<id>.png
-    └── ...
-```
-
-### What the runner does per run
-
-1. **Patches** `Ritl/config.yaml` with the mode and architecture for that run.
-2. **Starts the FSW**: launches `fprime-gds` (SIL) or SSHes to the Pi and starts the binary (HIL). Waits up to `FSW_STARTUP_WAIT` seconds for the sensor port to become reachable.
-3. **Launches the simulation** via `docker compose run ... python main.py` and blocks until it completes.
-4. **Parses the log** for `APOGEE`, `DROGUE`, `MAIN`, and `WALL_TIME` values.
-5. **Copies outputs** (log, CSV, plots) into the per-run experiment directory.
-6. **Tears down** the FSW and Docker container.
+The experiment runner automates multi-run comparative experiments across all modes. It is built on the [experiment-runner](https://github.com/S2-group/experiment-runner) framework. Five standalone configs live in `experiment_runner/`, one per experiment (coupling-strategy comparison, fault injection, rate-group frequency sweep, sample-rate sweep, time-step sweep) — see [`experiment_runner/Readme.md`](experiment_runner/Readme.md) for the full list, what each one sweeps, and how to run it.
 
 ---
 
@@ -385,10 +343,12 @@ rocket_in_the_loop/
 │       └── sim_bridge/
 │           └── bridge.py          # SimBridge — ZMQ REP server, glues all pieces
 │
-└── experiment_runner/
-    ├── RunnerConfig.py            # Main comparative experiment
-    ├── RunnerConfig_rategroup.py  # Rate-group frequency sweep
-    ├── RunnerConfig_fault_injection.py  # Fault injection experiment
-    ├── experiments/               # Experiment output (generated)
-    └── results/                   # Analysis output — plots and CSV (generated)
+└── experiment_runner/              # (msc_thesis_submission branch only)
+    ├── RunnerConfig_coupling_strategy_comparison.py  # Main comparative experiment
+    ├── RunnerConfig_fault_injection.py               # Barometer freeze fault injection
+    ├── RunnerConfig_rategroup_sweep.py               # Rate-group frequency sweep
+    ├── RunnerConfig_sample_rate_sweep.py             # Sensor sample-rate sweep
+    ├── RunnerConfig_timestep_sweep.py                # ODE time-step sweep
+    ├── analyse.py                  # Analysis / plotting for the main experiment
+    └── experiments/                 # Experiment output (generated)
 ```

@@ -8,14 +8,14 @@ log = logging.getLogger("ritl.rocketpy")
 _ROCKETPY_DATA = "data/Calisto_flight"
 
 
-def build(controller, enable_sil: bool = False) -> Flight:
+def build(controller, sample_rate: float = 10.0, time_step: float = 0.001) -> Flight:
     env = _build_environment()
     motor = _build_motor()
     rocket = _build_rocket(motor)
     _add_sensors(rocket)
-    _add_controllers(rocket, controller, enable_sil)
+    _add_controllers(rocket, controller, sample_rate)
     _add_parachutes(rocket, controller)
-    return _run(rocket, env)
+    return _run(rocket, env, time_step)
 
 
 def _build_environment():
@@ -98,15 +98,15 @@ def _add_sensors(rocket):
     rocket.add_sensor(gyro,  -0.10482544178314143)
 
 
-def _add_controllers(rocket, ctrl, enable_sil):
-    log.info("adding controllers...")
+def _add_controllers(rocket, ctrl, sample_rate):
+    log.info(f"adding controllers... sample rate {sample_rate}")
 
     rocket.add_air_brakes(
         drag_coefficient_curve=f"{_ROCKETPY_DATA}/air_brakes_cd.csv",
         controller_function=ctrl.airbrake_controller,
         name="AirBrakes",
         controller_name="AirBrakesController",
-        sampling_rate=10,
+        sampling_rate=sample_rate,
         reference_area=None,
         clamp=True,
         initial_observed_variables=(0, 0),
@@ -126,7 +126,7 @@ def _add_parachutes(rocket, ctrl):
     )
 
 
-def _run(rocket, env):
+def _run(rocket, env, timestep):
     log.info("running simulation...")
     return Flight(
         rocket=rocket,
@@ -134,7 +134,7 @@ def _run(rocket, env):
         rail_length=5.2,
         inclination=85,
         heading=0,
-        max_time_step=0.001,
-        min_time_step=0.001,
+        max_time_step=timestep,
+        min_time_step=timestep,
         time_overshoot=False,
     )

@@ -64,9 +64,12 @@ class SilController:
             gyro_z  = float(gyro[2]),
         )
 
-        if self._ground_alt is None:
-            self._ground_alt = float(state_vector[2])
-        true_alt = float(state_vector[2]) - self._ground_alt
+        if 3.68 <= time <= 3.74:
+            print(f"t={time:.5f} sensor_az={sensor.accel_z:.4f}")
+
+        # if self._ground_alt is None:
+        #     self._ground_alt = float(state_vector[2])
+        # true_alt = float(state_vector[2]) - self._ground_alt
         # log.info("TRUE_ALT %.4f %.4f", time, true_alt)
 
         resp = self._send({"type": "SENSOR", **sensor.to_dict()})

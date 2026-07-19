@@ -3,12 +3,10 @@ import time
 import os
 import numpy as np
 import matplotlib
-
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import rockets.cameos as cameos
 import rockets.calisto as calisto
-
 from models.config import load_config
 from models.fault_injector import FaultInjector
 from adapters.fprime_adapter import FPrimeAdapter
@@ -17,22 +15,23 @@ from sim_bridge import SimBridge
 from controllers.sil import SilController
 from controllers.non_sil import NonSilControllers
 
-
 ROCKETS = {
     "calisto": calisto.build,
     "cameos":  cameos.build,
 }
 
-
 def main():
+
     cfg = load_config("config.yaml")
     print("CONFIG LOADED", flush=True)
 
+    sample_rate = cfg.rocket_params.sample_rate
+    time_step   = cfg.rocket_params.time_step
+
     base = os.path.join(cfg.log_dir, f"{cfg.mode}_{cfg.arch or 'default'}_{cfg.rocket}")
+
     os.makedirs(cfg.log_dir, exist_ok=True)
-
     fmt = logging.Formatter("%(asctime)s [%(name)s] %(message)s")
-
     file_handler = logging.FileHandler(f"{base}.log", mode="w")
     file_handler.setFormatter(fmt)
 
@@ -55,21 +54,26 @@ def main():
             raise ValueError(
                 f"Unknown arch '{arch}'. Valid: {list(COUPLING_STRATEGIES)}"
             )
+
         fsw = FPrimeAdapter(cfg.network)
         coupling = COUPLING_STRATEGIES[arch]()
         bridge = SimBridge(fsw, coupling, cfg.network.zmq_address, fault_injector)
 
         print("WAITING FOR FPRIME", flush=True)
-        bridge.start_async()  # connects to FSW + binds ZMQ, then returns
 
+        bridge.start_async()  # connects to FSW + binds ZMQ, then returns
         ctrl = SilController(cfg.network.zmq_address)
         ctrl.connect()
     else:
         ctrl = NonSilControllers()
 
     log.info("building flight...")
+    log.info("sample_rate=%sHz  time_step=%ss", sample_rate, time_step)
     sim_start = time.time()
-    flight = ROCKETS[cfg.rocket](ctrl, enable_sil=cfg.is_sil)
+
+    flight = ROCKETS[cfg.rocket](
+        ctrl, sample_rate=sample_rate, time_step=time_step
+    )
 
     drogue_time = main_time = None
     for t, chute in flight.parachute_events:
@@ -82,24 +86,6 @@ def main():
     log.info("DROGUE %.4f", drogue_time if drogue_time is not None else -1.0)
     log.info("MAIN %.4f",   main_time  if main_time  is not None else -1.0)
     log.info("WALL_TIME %.4f", time.time() - sim_start)
-
-    alt = np.array(flight.z.source)
-    vz  = np.array(flight.vz.source)
-    np.savetxt(
-        f"{base}_trajectory.csv",
-        np.column_stack([alt[:, 0], alt[:, 1] - flight.env.elevation, vz[:, 1]]),
-        delimiter=",", header="t,altitude_agl_m,vz_ms", comments="",
-    )
-    # flight.all_info()
-
-    flight.plots.linear_kinematics_data()
-    plt.savefig(f"{base}_kinematics.png", dpi=150, bbox_inches="tight")
-    plt.close("all")
-
-    flight.plots.trajectory_3d()
-    plt.savefig(f"{base}_trajectory3d.png", dpi=150, bbox_inches="tight")
-    plt.close("all")
-
 
 if __name__ == "__main__":
     main()

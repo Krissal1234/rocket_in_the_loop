@@ -27,6 +27,7 @@ class NonSilControllers:
             "vz": 0.0,
             "prev_alt": None,
             "burned_out": False,
+            "boosting": False,
             "descent_count": 0,
             "P0": None,
         }
@@ -90,7 +91,9 @@ class NonSilControllers:
         pid["vz"] += az * dt
 
         if not pid["burned_out"]:
-            if az < BOOST_ACCEL_THRESHOLD:
+            if az > BOOST_ACCEL_THRESHOLD:
+                pid["boosting"] = True
+            if pid["boosting"] and az < BOOST_ACCEL_THRESHOLD:
                 pid["burned_out"] = True
                 log.info("Burnout detected at t=%.2f s", time)
             else:

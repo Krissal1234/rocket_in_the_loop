@@ -1,128 +1,56 @@
 # RITL Experiment Runner — How to Run
 
-## Overview
+Built on the [experiment-runner](https://github.com/S2-group/experiment-runner) framework. Each `RunnerConfig_*.py` in this directory is a standalone experiment: it patches `Ritl/config.yaml`, starts/stops the FSW (SIL via `fprime-gds`, HIL via SSH to the Pi), runs the sim through `docker compose`, and parses the resulting log into `experiments/<name>/run_table.csv`.
 
-Two RunnerConfigs cover all experiments:
+Setup:
 
-- **`RunnerConfig.py`** — all non-rategroup architectures (lockstep, sensordriven, nonsil). Runs fully unattended.
-- **`RunnerConfig_rategroup.py`** — rategroup architecture at a specific frequency. Run once per frequency.
+```bash
+git clone https://github.com/S2-group/experiment-runner
+cd experiment-runner
+pip install -e .
+```
 
-Results go to separate folders under `experiments/` and share the same CSV column structure 
+Run any config from this directory:
+
+```bash
+cd experiment_runner
+python -m experiment_runner RunnerConfig_<name>.py
+```
+
+For any `hil_*` mode, the FSW binary must already be running/deployed on the Pi (`pi@10.42.0.142`) before you start the run — the runner SSHs in to kill/start it but doesn't build or copy the binary.
 
 ---
 
-## Architectures & Binaries
+## Runner configs
 
-| Architecture | FSW binary | RunnerConfig |
-|---|---|---|
-| Nonsil (baseline) | none needed | `RunnerConfig.py` |
-| Control Lockstep | sensor driven (default) | `RunnerConfig.py` |
-| Sensor Driven | sensor driven (default) | `RunnerConfig.py` |
-| Rate Group 1hz | rategroup branch, 1hz build | `RunnerConfig_rategroup.py` |
-| Rate Group 5hz | rategroup branch, 5hz build | `RunnerConfig_rategroup.py` |
-| Rate Group 10hz | rategroup branch, 10hz build | `RunnerConfig_rategroup.py` |
-| Rate Group 25hz | rategroup branch, 25hz build | `RunnerConfig_rategroup.py` |
-| Rate Group 50hz | rategroup branch, 50hz build | `RunnerConfig_rategroup.py` |
+| File | Experiment | Modes | Notes |
+|---|---|---|---|
+| `RunnerConfig_coupling_strategy_comparison.py` | Main comparison across all architectures | `nonsil`, `sil_lockstep`, `sil_snapshot`, `hil_lockstep`, `hil_snapshot` | 10 reps/mode. The general-purpose baseline experiment. |
+| `RunnerConfig_fault_injection.py` | Barometer freeze fault injection | `sil_snapshot`, `hil_snapshot` | Freezes the baro reading at `BARO_FREEZE_AT` (10s) via `fault_injection` in `config.yaml`, to see how the FSW handles a stale sensor. |
+| `RunnerConfig_rategroup_sweep.py` | Rate-group architecture at a fixed frequency | `sil_rategroup`, `hil_rategroup` | Uses the time-triggered rategroup FSW build, not the sensor-driven one. Run once **per frequency** — set `RATEGROUP_HZ` and rebuild/redeploy the FSW binary at that frequency first. |
+| `RunnerConfig_sample_rate_sweep.py` | Sensor sample-rate sweep | `nonsil`, `sil_snapshot`, `sil_lockstep`, `hil_snapshot`, `hil_lockstep` | Sweeps `SAMPLE_RATES` (5, 10, 25, 35, 50 Hz) as a factor, `time_step` held fixed at 0.001s. |
+| `RunnerConfig_timestep_sweep.py` | ODE integration time-step sweep | `sil_snapshot`, `nonsil` | Sweeps `TIME_STEPS` (0.0001–0.01s) as a factor, `sample_rate` held fixed at 10Hz. HIL not included. |
 
----
-
-## Step 1 — Run the main experiment (unattended)
-
-### Build the default FSW binary
-
-```bash
-git checkout main
-fprime-util build
-```
-
-##### For HIL, copy to Pi:
-```bash
-scp <binary_path> pi@10.42.0.142:/home/pi/RitlFsw_SilDeployment
-```
-
-### Choose modes in RunnerConfig.py
-
-Edit the `mode_factor` list to include the modes you want:
-
-```python
-mode_factor = FactorModel("mode", [
-    "nonsil",
-    "sil_lockstep",
-    "sil_nolockstep",
-    "hil_lockstep",   # remove if Pi not connected
-    "hil_nolockstep", # remove if Pi not connected
-])
-```
-
-### Run it
-from experiment runner repo
-
-```bash
-python experiment-runner/ ../rocket_in_the_loop/experiments/RunnerConfig.py
-```
-
-Results saved to `experiments/ritl_experiment/run_table.csv`.
+All five configs share the same setup/teardown machinery (`_kill_fprime`, `_start_fprime`, `_kill_hil_fsw`, `_start_hil_fsw`) — keep any future fixes to those in sync across files.
 
 ---
 
-## Step 2 — Run rategroup experiments (once per frequency)
-
-For each frequency (10, 25, 50, 100hz):
-
-### 1. Set the frequency in RunnerConfig_rategroup.py
-
-```python
-RATEGROUP_HZ = 10   # change to 25, 50, or 100
-```
-
-### 2. Build the FSW binary at that frequency
-
-```bash
-git checkout rategroup
-# set frequency in FSW source
-fprime-util build
-```
-
-#### For HIL, copy to Pi:
-
-```bash
-scp <binary_path> pi@10.42.0.142:/home/pi/RitlFsw_SilDeployment
-```
-
-### 3. Run it
-
-```bash
-python experiment-runner/ ../rocket_in_the_loop/experiments/RunnerConfig_rategroup.py
-```
-
-The runner will prompt you once at the start to confirm the binary is ready, then run all 10 reps unattended.
-
-Results saved to `experiments/ritl_rategroup_10hz_experiment/run_table.csv`.
-
-Repeat for each frequency — each gets its own folder.
-
----
-
-## Output Structure
+## Output structure
 
 ```
 experiments/
-  ritl_experiment/
-    run_table.csv          ← nonsil, lockstep, nolockstep, sensordriven results
+  ritl_experiment/                       ← coupling_strategy_comparison
+  ritl_fault_injection_experiment/       ← fault_injection
+  ritl_rategroup_<hz>hz_experiment/      ← rategroup_sweep, one folder per frequency
+  ritl_sample_rate_sweep_full/           ← sample_rate_sweep
+  ritl_timestep_sweep/                   ← timestep_sweep
+
+  <experiment>/
+    run_table.csv          ← factor assignments + results for every run
     run_0_repetition_0/
-      sil_lockstep_cameos.log
-      sil_lockstep_cameos_trajectory.csv
+      <mode>_<id>.log
+      <mode>_<id>_trajectory.csv
       ...
-
-  ritl_rategroup_10hz_experiment/
-    run_table.csv          ← rategroup sil + hil results at 10hz
-    ...
-
-  ritl_rategroup_25hz_experiment/
-    run_table.csv
-    ...
 ```
 
-All CSVs share the same columns: `mode, apogee_m, apogee_time_s, drogue_s, main_s, wall_time_s, success`.
-
----
+All CSVs share the same result columns: `apogee_m, apogee_time_s, drogue_s, main_s, wall_time_s, success` (plus whatever factors that experiment sweeps, e.g. `mode`, `sample_rate`, `time_step`).

@@ -20,8 +20,11 @@ import yaml
 
 
 ROCKET = "cameos"
-N_RUNS = 10
-RUN_TIMEOUT = 600    # seconds
+N_RUNS = 10 # nonsil is deterministic so these reps are effectively free (no FSW startup)
+RUN_TIMEOUT = 600     # seconds
+
+SAMPLE_RATES = [5, 10, 25, 35, 50]   # Hz — time step held fixed at 0.001s
+FIXED_TIME_STEP = 0.001
 
 
 HIL_IP           = "10.42.0.142"
@@ -60,7 +63,7 @@ RE_WALL_TIME = re.compile(r"WALL_TIME\s+([\d.]+)")
 class RunnerConfig:
     ROOT_DIR = RUNNER_DIR
 
-    name:                    str           = "ritl_experiment"
+    name:                    str           = "ritl_sample_rate_sweep_full"
     results_output_path:     Path          = ROOT_DIR / "experiments"
     operation_type:          OperationType = OperationType.AUTO
     time_between_runs_in_ms: int           = 3000
@@ -80,19 +83,20 @@ class RunnerConfig:
         self.run_table_model = None
         self._fprime_proc: Optional[subprocess.Popen] = None
         self._current_mode: str = ""
-        output.console_log("RITL RunnerConfig loaded")
+        output.console_log("RITL Sample Rate Sweep RunnerConfig loaded")
 
     # ── Run table ─────────────────────────────────────────────────────────────
     def create_run_table_model(self) -> RunTableModel:
         mode_factor = FactorModel("mode", [
             "nonsil",
-            "sil_lockstep",
             "sil_snapshot",
-            "hil_lockstep",
+            "sil_lockstep",
             "hil_snapshot",
+            "hil_lockstep",
         ])
+        rate_factor = FactorModel("sample_rate", SAMPLE_RATES)
         self.run_table_model = RunTableModel(
-            factors=[mode_factor],
+            factors=[mode_factor, rate_factor],
             repetitions=N_RUNS,
             data_columns=["apogee_m", "apogee_time_s", "drogue_s", "main_s", "wall_time_s", "success"],
         )
@@ -101,34 +105,39 @@ class RunnerConfig:
     def _log_path(self, mode: str) -> Path:
         if mode == "nonsil":
             return RITL_LOGS / f"nonsil_default_{ROCKET}.log"
-        arch = mode.split("_", 1)[1]   # lockstep | snapshot | sensordriven | rategroup
-        return RITL_LOGS / f"sil_{arch}_{ROCKET}.log"
+        arch = mode.split("_", 1)[1]   # snapshot
+        return RITL_LOGS / f"sil_{arch}_{ROCKET}.log"   # same log naming for SIL and HIL runs
 
-    def _patch_ritl_config(self, mode: str) -> None:
+    def _patch_ritl_config(self, mode: str, sample_rate: float) -> None:
         with open(RITL_CONFIG) as f:
             cfg = yaml.safe_load(f)
 
         if mode == "nonsil":
             cfg["mode"] = "nonsil"
             cfg["arch"] = None
-        elif mode.startswith("hil"):
-            arch = mode.split("_", 1)[1]   # lockstep | snapshot |
+        else:
+            arch = mode.split("_", 1)[1]   # snapshot
             cfg["mode"] = "sil"
             cfg["arch"] = arch
-            cfg["network"]["fsw_host"] = HIL_IP
-        else:  # sil_lockstep | sil_snapshot |
-            arch = mode.split("_", 1)[1]
-            cfg["mode"] = "sil"
-            cfg["arch"] = arch
-            cfg["network"]["fsw_host"] = SIL_HOST
+            cfg["network"]["fsw_host"] = HIL_IP if mode.startswith("hil") else SIL_HOST
 
         cfg["rocket"]  = ROCKET
         cfg["log_dir"] = "logs"   # relative — main.py runs from /app inside container
 
+        # pass sample_rate / time_step through to rocket build (nonsil included —
+        # the standalone controller uses the same sampling_rate parameter)
+        cfg.setdefault("rocket_params", {})
+        cfg["rocket_params"]["sample_rate"] = sample_rate
+        cfg["rocket_params"]["time_step"]   = FIXED_TIME_STEP
+
         with open(RITL_CONFIG, "w") as f:
             yaml.dump(cfg, f, default_flow_style=False)
 
-        output.console_log(f"Config patched: mode={cfg['mode']}, arch={cfg.get('arch')}, fsw_host={cfg['network'].get('fsw_host', 'n/a')}")
+        output.console_log(
+            f"Config patched: mode={cfg['mode']}, arch={cfg.get('arch')}, "
+            f"sample_rate={sample_rate}Hz, time_step={FIXED_TIME_STEP}s, "
+            f"fsw_host={cfg.get('network', {}).get('fsw_host', 'n/a')}"
+        )
 
     def _kill_fprime(self) -> None:
         output.console_log("Killing any existing F Prime / GDS processes...")
@@ -229,7 +238,7 @@ class RunnerConfig:
         }
 
     def before_experiment(self) -> None:
-        output.console_log(f"Starting RITL experiment | runs={N_RUNS}")
+        output.console_log(f"Starting sample rate sweep | rates={SAMPLE_RATES}Hz | runs/cond={N_RUNS}")
         output.console_log(f"RITL dir:    {RITL_DIR}")
         output.console_log(f"RITL config: {RITL_CONFIG}")
         output.console_log(f"Logs dir:    {RITL_LOGS}")
@@ -238,18 +247,16 @@ class RunnerConfig:
     def before_run(self) -> None:
         output.console_log("Preparing for next run...")
         subprocess.run(["docker", "compose", "down"], cwd=RITL_DIR, capture_output=True)
-        # Delete stale logs so the next run starts fresh and we don't parse the wrong run
         for f in RITL_LOGS.glob("*.log"):
             f.unlink()
         time.sleep(2)
 
-
     def start_run(self, context: RunnerContext) -> None:
-        mode = context.execute_run["mode"]
-        run_id = context.execute_run["__run_id"]
-        output.console_log(f"Starting run: mode={mode}")
+        mode        = context.execute_run["mode"]
+        sample_rate = context.execute_run["sample_rate"]
+        output.console_log(f"Starting run: mode={mode}, sample_rate={sample_rate}Hz")
 
-        self._patch_ritl_config(mode)
+        self._patch_ritl_config(mode, sample_rate)
         self._current_mode = mode   # used by stop_run to clean up the right FSW
         if mode.startswith("hil"):
             self._kill_hil_fsw()
@@ -295,13 +302,15 @@ class RunnerConfig:
             mode = getattr(self, "_current_mode", "")
             if mode.startswith("hil"):
                 self._kill_hil_fsw()
-            else:
+            elif mode.startswith("sil"):
                 self._kill_fprime()
+        # nonsil: nothing to terminate, docker compose down above is sufficient
 
     def populate_run_data(self, context: RunnerContext) -> Optional[Dict[str, SupportsStr]]:
-        mode     = context.execute_run["mode"]
-        run_id   = context.execute_run["__run_id"]
-        log_path = self._log_path(mode)
+        mode        = context.execute_run["mode"]
+        sample_rate = context.execute_run["sample_rate"]
+        run_id      = context.execute_run["__run_id"]
+        log_path    = self._log_path(mode)
 
         output.console_log(f"Parsing log: {log_path}")
         parsed = self._parse_log(log_path)
@@ -311,8 +320,8 @@ class RunnerConfig:
                     "main_s": None, "wall_time_s": None, "success": False}
 
         # Copy log + any other outputs (CSV, plots) into the experiment run dir
-        src_stem  = log_path.stem   # e.g. sil_lockstep_cameos
-        dest_stem = f"{mode}_{run_id}"
+        src_stem  = log_path.stem   # e.g. sil_snapshot_cameos or nonsil_default_cameos
+        dest_stem = f"{mode}_{sample_rate}hz_{run_id}"
         for f in RITL_LOGS.iterdir():
             if f.stem == src_stem:
                 shutil.copy(f, context.run_dir / f"{dest_stem}{f.suffix}")
