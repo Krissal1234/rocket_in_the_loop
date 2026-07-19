@@ -34,23 +34,3 @@ For any `hil_*` mode, the FSW binary must already be running/deployed on the Pi 
 All five configs share the same setup/teardown machinery (`_kill_fprime`, `_start_fprime`, `_kill_hil_fsw`, `_start_hil_fsw`) — keep any future fixes to those in sync across files.
 
 ---
-
-## Output structure
-
-```
-experiments/
-  ritl_experiment/                       ← coupling_strategy_comparison
-  ritl_fault_injection_experiment/       ← fault_injection
-  ritl_rategroup_<hz>hz_experiment/      ← rategroup_sweep, one folder per frequency
-  ritl_sample_rate_sweep_full/           ← sample_rate_sweep
-  ritl_timestep_sweep/                   ← timestep_sweep
-
-  <experiment>/
-    run_table.csv          ← factor assignments + results for every run
-    run_0_repetition_0/
-      <mode>_<id>.log
-      <mode>_<id>_trajectory.csv
-      ...
-```
-
-All CSVs share the same result columns: `apogee_m, apogee_time_s, drogue_s, main_s, wall_time_s, success` (plus whatever factors that experiment sweeps, e.g. `mode`, `sample_rate`, `time_step`).

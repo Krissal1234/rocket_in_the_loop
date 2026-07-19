@@ -290,19 +290,6 @@ cd Ritl
 docker compose up
 ```
 
-### Outputs
-
-Each run writes to `Ritl/logs/`:
-
-| File | Contents |
-|---|---|
-| `<mode>_<arch>_<rocket>.log` | Full timestamped log (sensor readings, actuation, outcomes) |
-| `<mode>_<arch>_<rocket>_trajectory.csv` | Time-series: `t, altitude_agl_m, vz_ms` |
-| `<mode>_<arch>_<rocket>_kinematics.png` | Linear kinematics plot |
-| `<mode>_<arch>_<rocket>_trajectory3d.png` | 3-D trajectory plot |
-
----
-
 ## Experiment Runner
 
 *(only on `msc_thesis_submission` — `main` does not include this)*
@@ -310,45 +297,3 @@ Each run writes to `Ritl/logs/`:
 The experiment runner automates multi-run comparative experiments across all modes. It is built on the [experiment-runner](https://github.com/S2-group/experiment-runner) framework. Five standalone configs live in `experiment_runner/`, one per experiment (coupling-strategy comparison, fault injection, rate-group frequency sweep, sample-rate sweep, time-step sweep) — see [`experiment_runner/Readme.md`](experiment_runner/Readme.md) for the full list, what each one sweeps, and how to run it.
 
 ---
-
-## Project Structure
-
-```
-rocket_in_the_loop/
-├── Ritl/                          # Simulation orchestrator (Docker image)
-│   ├── config.yaml                # Runtime configuration
-│   ├── main.py                    # Entry point
-│   ├── Dockerfile
-│   ├── docker-compose.yml
-│   ├── rockets/
-│   │   ├── cameos.py              # CAMÕES rocket definition for RocketPy
-│   │   └── calisto.py             # Calisto rocket definition for RocketPy
-│   └── src/
-│       ├── adapters/
-│       │   ├── base.py            # FswAdapter abstract interface
-│       │   └── fprime_adapter.py  # F Prime TCP implementation
-│       ├── controllers/
-│       │   ├── sil.py             # SilController — RocketPy ↔ SimBridge via ZMQ
-│       │   └── non_sil.py         # Stub controller for non-SIL baseline
-│       ├── coupling/
-│       │   ├── base.py            # CouplingStrategy abstract interface
-│       │   ├── lockstep.py        # Blocking lockstep coupling
-│       │   └── snapshot.py        # Non-blocking snapshot coupling
-│       ├── models/
-│       │   ├── config.py          # Configuration dataclasses
-│       │   ├── sensor_data.py     # SensorData (ZMQ JSON ↔ TCP binary)
-│       │   ├── actuation_data.py  # ActuationCommand binary parser
-│       │   ├── flag_store.py      # Thread-safe actuation state store
-│       │   └── fault_injector.py  # Sensor fault injection
-│       └── sim_bridge/
-│           └── bridge.py          # SimBridge — ZMQ REP server, glues all pieces
-│
-└── experiment_runner/              # (msc_thesis_submission branch only)
-    ├── RunnerConfig_coupling_strategy_comparison.py  # Main comparative experiment
-    ├── RunnerConfig_fault_injection.py               # Barometer freeze fault injection
-    ├── RunnerConfig_rategroup_sweep.py               # Rate-group frequency sweep
-    ├── RunnerConfig_sample_rate_sweep.py             # Sensor sample-rate sweep
-    ├── RunnerConfig_timestep_sweep.py                # ODE time-step sweep
-    ├── analyse.py                  # Analysis / plotting for the main experiment
-    └── experiments/                 # Experiment output (generated)
-```

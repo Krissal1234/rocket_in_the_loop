@@ -2,22 +2,26 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Optional
 import yaml
+
 @dataclass
 class NetworkConfig:
     fsw_host: str = "host.docker.internal"
     fsw_sensor_port: int = 50100
     fsw_actuation_port: int = 50101
     zmq_address: str = "tcp://127.0.0.1:5560"
+
 @dataclass
 class FaultConfig:
     enabled: bool = False
     dropout_rate: float = 0.0
     freeze_baro: bool = False
     freeze_baro_at: float = 0.0
+
 @dataclass
 class RocketParamsConfig:
     sample_rate: float = 10.0
     time_step: float = 0.001
+
 @dataclass
 class RitlConfig:
     mode: str = "nonsil"          # sil | nonsil
@@ -28,9 +32,11 @@ class RitlConfig:
     network: NetworkConfig = field(default_factory=NetworkConfig)
     fault: FaultConfig = field(default_factory=FaultConfig)
     rocket_params: RocketParamsConfig = field(default_factory=RocketParamsConfig)
+
     @property
     def is_sil(self) -> bool:
         return self.mode == "sil"
+
 def load_config(path: str = "config/config.yaml") -> RitlConfig:
     try:
         with open(path) as f:
@@ -40,6 +46,7 @@ def load_config(path: str = "config/config.yaml") -> RitlConfig:
     network_raw = data.pop("network", {}) or {}
     fault_raw = data.pop("fault_injection", {}) or {}
     rocket_params_raw = data.pop("rocket_params", {}) or {}
+
     return RitlConfig(
         mode=data.get("mode", "nonsil"),
         rocket=data.get("rocket", "cameos"),
