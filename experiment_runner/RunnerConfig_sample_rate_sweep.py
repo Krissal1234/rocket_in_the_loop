@@ -124,8 +124,6 @@ class RunnerConfig:
         cfg["rocket"]  = ROCKET
         cfg["log_dir"] = "logs"   # relative — main.py runs from /app inside container
 
-        # pass sample_rate / time_step through to rocket build (nonsil included —
-        # the standalone controller uses the same sampling_rate parameter)
         cfg.setdefault("rocket_params", {})
         cfg["rocket_params"]["sample_rate"] = sample_rate
         cfg["rocket_params"]["time_step"]   = FIXED_TIME_STEP

@@ -145,12 +145,8 @@ Each actuation command is a **9-byte** binary message:
 
 | Byte | Field | Description |
 |---|---|---|
-| 0 | header byte | `0x01` |
+| 0 | command byte | `0x01` for DROGUE `0x02` for MAIN `0x03` for AIRBRAKE |
 | 1–8 | `airbrake_dep_level` | `float64` big-endian in `[0.0, 1.0]` |
-
-The orchestrator stores the latest command in a thread-safe `FlagStore`. The coupling strategy then reads from this store to determine what to return to the simulator.
-
-The same `FlagStore` snapshot is also returned in response to `DROGUE_POLL` / `MAIN_POLL`, including FSW-computed `drogue` and `main` boolean flags (if the FSW implementation sets them; otherwise the orchestrator uses its own logic).
 
 ---
 
@@ -192,27 +188,12 @@ Sim  ←  dep_level  ←  get_snapshot()
 This is the least synchronised strategy, however it uses non blocking RITL paired with a time-triggered FSW
 
 
-## Fault Injection
-
-The `FaultInjector` intercepts sensor data inside the orchestrator before it is forwarded to the FSW. It is configured in `config.yaml` under `fault_injection`.
-
-| Parameter | Type | Description |
-|---|---|---|
-| `enabled` | bool | Activates fault injection. |
-| `freeze_baro` | bool | Freezes the barometric pressure reading after a trigger time. |
-| `freeze_baro_at` | float | Simulation time (s) at which to freeze the barometer. |
-| `dropout_rate` | float | Probability `[0, 1]` of randomly dropping any sensor packet. |
-
-When the barometer is frozen, the FSW continues to receive a stale pressure value while the true altitude (visible to RocketPy) continues to change. This tests the FSW's fault-detection and fallback logic.
-
----
-
 ## Configuration
 
 All parameters for a single run are in `Ritl/config.yaml`:
 
 ```yaml
-mode: sil               # nonsil | sil
+mode: sil               # nonsil | sil - here sil is still used for HIL (only fsw host ip and port need to be changed)
 arch: snapshot          # lockstep | snapshot | rategroup  (sil only)
 rocket: cameos          # rocket model to simulate
 
@@ -235,8 +216,6 @@ rocket_params:
   time_step: 0.001       # s — RocketPy ODE integration time-step
 ```
 
-`rategroup` reuses the same (non-blocking) coupling code as `snapshot` — see [Rate Group](#rate-group) below — it's paired with a time-triggered FSW build rather than a different coupling strategy in software.
-
 ---
 
 ## Running a Single Simulation
@@ -245,30 +224,30 @@ rocket_params:
 
 - Docker and Docker Compose installed.
 - For SIL: F Prime GDS running with the `RitlFsw_SilDeployment` binary (see FSW repository).
-- For HIL: Raspberry Pi accessible by SSH with the FSW binary deployed.
+- For HIL: Raspberry Pi accessible by SSH via Ethernet with the FSW binary deployed.
 
 ### Non-SIL (baseline, no FSW required)
 
 ```bash
 cd Ritl
-# Edit config.yaml: set mode: nonsil
+Edit config.yaml: set mode: nonsil
 docker compose up
 ```
 
 ### SIL
 
 ```bash
-# 1. Start F Prime GDS on the host machine (in the FSW repo):
+1. Start F Prime GDS on the host machine (in the FSW repo):
 source fprime-venv/bin/activate
 cd RitlFsw/SilDeployment
 fprime-gds
 
-# 2. Edit Ritl/config.yaml:
-#    mode: sil
-#    arch: lockstep   (or snapshot)
-#    network.fsw_host: 127.0.0.1
+2. Edit Ritl/config.yaml:
+    mode: sil
+    arch: lockstep   (or snapshot)
+    network.fsw_host: 127.0.0.1
 
-# 3. Run the simulation:
+3. Run the simulation:
 cd Ritl
 docker compose up
 ```
@@ -276,16 +255,16 @@ docker compose up
 ### HIL
 
 ```bash
-# 1. SSH to the Pi and start the FSW binary:
+1. SSH to the Pi and start the FSW binary:
 ssh pi@10.42.0.142
 ./RitlFsw_SilDeployment
 
-# 2. Edit Ritl/config.yaml:
-#    mode: sil
-#    arch: lockstep   (or snapshot)
-#    network.fsw_host: 10.42.0.142
+2. Edit Ritl/config.yaml:
+    mode: sil
+    arch: lockstep   (or snapshot)
+    network.fsw_host: <embedded ip>
 
-# 3. Run the simulation from the host:
+3. Run the simulation from the host:
 cd Ritl
 docker compose up
 ```

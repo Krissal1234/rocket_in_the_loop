@@ -26,7 +26,7 @@ class RocketParamsConfig:
 class RitlConfig:
     mode: str = "nonsil"          # sil | nonsil
     rocket: str = "cameos"
-    arch: Optional[str] = None    # lockstep | nolockstep  (sil only)
+    arch: Optional[str] = None
     run_id: Optional[str] = None
     log_dir: str = "logs"
     network: NetworkConfig = field(default_factory=NetworkConfig)

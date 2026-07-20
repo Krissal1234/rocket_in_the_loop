@@ -1,17 +1,17 @@
-arch: lockstep
-fault_injection:
-  dropout_rate: 0.0
-  enabled: false
-  freeze_baro: true
-  freeze_baro_at: 10.0
+rocket: cameos
+mode: sil # sil here just means running simulation, as opposed to nonsil (when running hil, this should remain as sil and the fsw should be pointed to down below)
+arch: lockstep # lockstep or snapshot (blocking or non blocking) - rategroup is defined by the fsw arch
 log_dir: logs
-mode: sil
+fault_injection:
+  enabled: false
+  dropout_rate: 0.0
+  freeze_baro: false
+  freeze_baro_at: 0.0
 network:
   fsw_actuation_port: 50101
-  fsw_host: 10.42.0.142
+  fsw_host: 10.42.0.142 # should be set to loopback if running sil
   fsw_sensor_port: 50100
   zmq_address: tcp://127.0.0.1:5560
-rocket: cameos
 rocket_params:
-  sample_rate: 5
+  sample_rate: 10
   time_step: 0.001

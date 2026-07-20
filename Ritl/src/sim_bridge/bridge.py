@@ -10,7 +10,6 @@ from models.fault_injector import FaultInjector, no_faults
 log = logging.getLogger("ritl.sim_bridge")
 
 # ZMQ message protocol (simulator-facing interface)
-# Any simulator that speaks this JSON protocol over ZMQ REQ/REP can connect.
 #
 # Inbound messages (simulator --> bridge):
 #   SENSOR:      {"type": "SENSOR", "t": float, "baro": float,

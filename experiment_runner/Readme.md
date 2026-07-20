@@ -7,7 +7,6 @@ Setup:
 ```bash
 git clone https://github.com/S2-group/experiment-runner
 cd experiment-runner
-pip install -e .
 ```
 
 Run any config from this directory:

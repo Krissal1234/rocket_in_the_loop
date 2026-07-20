@@ -99,8 +99,8 @@ class _ActuationTcpServer:
 class FPrimeAdapter(FswAdapter):
     """FSW adapter for NASA F Prime over TCP.
 
-    Sensor data --> ``fsw_sensor_port``    (we connect as client to F Prime's server).
-    Actuation   <-- ``fsw_actuation_port`` (F Prime connects to our server).
+    Sensor data --> fsw_sensor_port    (we connect as client to F Prime's server).
+    Actuation   <-- fsw_actuation_port (F Prime connects to our server).
 
     """
 
