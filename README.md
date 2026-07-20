@@ -237,17 +237,17 @@ docker compose up
 ### SIL
 
 ```bash
-1. Start F Prime GDS on the host machine (in the FSW repo):
+# 1. Start F Prime GDS on the host machine (in the FSW repo):
 source fprime-venv/bin/activate
 cd RitlFsw/SilDeployment
 fprime-gds
 
-2. Edit Ritl/config.yaml:
-    mode: sil
-    arch: lockstep   (or snapshot)
-    network.fsw_host: 127.0.0.1
+# 2. Edit Ritl/config.yaml:
+#     mode: sil
+#     arch: lockstep   (or snapshot)
+#     network.fsw_host: 127.0.0.1
 
-3. Run the simulation:
+# 3. Run the simulation:
 cd Ritl
 docker compose up
 ```
@@ -255,16 +255,16 @@ docker compose up
 ### HIL
 
 ```bash
-1. SSH to the Pi and start the FSW binary:
+# 1. SSH to the Pi and start the FSW binary:
 ssh pi@10.42.0.142
 ./RitlFsw_SilDeployment
 
-2. Edit Ritl/config.yaml:
-    mode: sil
-    arch: lockstep   (or snapshot)
-    network.fsw_host: <embedded ip>
+# 2. Edit Ritl/config.yaml:
+#     mode: sil
+#     arch: lockstep   (or snapshot)
+#     network.fsw_host: <embedded ip>
 
-3. Run the simulation from the host:
+# 3. Run the simulation from the host:
 cd Ritl
 docker compose up
 ```
