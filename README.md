@@ -256,7 +256,7 @@ docker compose up
 
 ```bash
 # 1. SSH to the Pi and start the FSW binary:
-ssh pi@10.42.0.142
+ssh pi@<embedded ip>
 ./RitlFsw_SilDeployment
 
 # 2. Edit Ritl/config.yaml:
