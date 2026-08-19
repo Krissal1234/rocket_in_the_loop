@@ -31,12 +31,10 @@ class FlagStore:
         # if should_set_event:
         #     self._airbrake_event.set()
 
-    def wait_for_actuation(self, timeout: float = 10.0) -> ActuationData:
-        with self._lock:
-            if not self._fsw_active:
-                return self.snapshot()
+    def wait_for_actuation(self, timeout: float = 2.0) -> ActuationData:
+        if not self._fsw_active:
+            return self.snapshot()
 
-        self._airbrake_event.clear()
         got = self._airbrake_event.wait(timeout=timeout)
 
         with self._lock:
@@ -44,9 +42,13 @@ class FlagStore:
                 self._fsw_active = False
                 if not self._silence_logged:
                     self._silence_logged = True
-                    log.debug("FlagStore: F-Prime went silent, switching to non-blocking, as active control ended")
+                    log.debug("FlagStore: F-Prime went silent, switching to non-blocking")
 
-            return self.snapshot()
+            return ActuationData(
+                airbrake_dep_level=self._state.airbrake_dep_level,
+                drogue=self._state.drogue,
+                main=self._state.main
+            )
 
     def snapshot(self) -> ActuationData:
         with self._lock:

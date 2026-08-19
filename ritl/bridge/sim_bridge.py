@@ -101,6 +101,7 @@ class SimBridge:
                 "dropped": int(dropped),
                 "commanded_airbrake": act_dict.get("airbrake_dep_level", 0.0),
             })
+            log.info(sensor.t)
 
             return act_dict
 

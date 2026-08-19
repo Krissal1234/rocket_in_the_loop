@@ -75,15 +75,17 @@ def main():
 
     log.info("Building and executing %s driver...", cfg.simulator)
     driver = SIMULATOR_DRIVERS[cfg.simulator](cfg.is_sil, cfg.rocketpy.rocket)
-    result = driver.run(bridge_client)
 
 
-    if cfg.is_sil:
-        bridge.save_telemetry(base)
-        bridge.stop()
-        bridge_client.close()
-        if bridge_client:
+    try:
+        result = driver.run(bridge_client)
+    finally:
+        if cfg.is_sil:
+            bridge.save_telemetry(base)
+            bridge.stop()
             bridge_client.close()
+            if bridge_client:
+                bridge_client.close()
 
     log.info("=== FLIGHT SIMULATION RESULTS ===")
     log.info("APOGEE     %.4f m @ %.4f s", result.apogee, result.apogee_time)
