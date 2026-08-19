@@ -1,0 +1,36 @@
+mode: sil
+simulator: rocketpy # rocketpy | fmu
+
+log_dir: logs
+
+network:
+  fsw_host: 127.0.0.1 #set to ip of hardware if hardware in the loop
+  fsw_sensor_port: 50100
+  fsw_actuation_port: 50101
+  zmq_address: "tcp://127.0.0.1:5560"
+
+rocketpy:
+  rocket: cameos
+  arch: blocking # blocking | non_blocking — only used when simulator: rocketpy
+
+fault_injection: # only works in sil mode
+  enabled: false
+  dropout_rate: 0.0
+  freeze_baro: false
+  freeze_baro_at: 0.0
+
+# future values for fmu
+fmu:
+  path: models/calisto.fmu
+  step_size: 0.01
+  stop_time: 60.0
+  outputs:
+    baro: p_baro
+    accel_x: a_x
+    accel_y: a_y
+    accel_z: a_z
+    gyro_x: g_x
+    gyro_y: g_y
+    gyro_z: g_z
+  inputs:
+    airbrake: u_airbrake

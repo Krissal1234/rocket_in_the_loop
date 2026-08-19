@@ -211,3 +211,4 @@ Ritl/results/
 .vscode/
 experiment_runner/experiments
 experiment_runner/results
+logs/

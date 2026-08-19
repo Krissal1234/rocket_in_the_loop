@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ritl"
+version = "0.1.0"
+description = "Rocket-in-the-Loop: Software/Hardware-in-the-loop for Flight Software V&V"
+authors = [
+    { name="Kris Saliba" }
+]
+requires-python = ">=3.10"
+dependencies = [
+    "pyzmq>=25.0.0,<27",
+    "pyyaml>=6.0,<7",
+    "rocketpy>=1.1.0,<2.0",
+    "pandas>=2.0",
+    "numpy>=1.24,<3.0",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["ritl", "ritl.*"]
