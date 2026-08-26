@@ -39,7 +39,7 @@ Edit `configs/default.yaml` to set the mode (`sil`/`nonsil`), simulator, rocket,
 
 RITL doesn't ship an F Prime deployment — you need a compatible one running before starting a `sil`mode run.
 
-- Use the tag/branch that matches this RITL version: **`<version/tag to pin here>`**
+- Go to the [ritl-fsw repo](https://github.com/Krissal1234/ritl-fsw) 
 
 ## Status
 
